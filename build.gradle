@@ -24,12 +24,6 @@ allprojects {
 
 subprojects {
   apply plugin: 'java'
-  apply plugin: 'checkstyle'
-
-  checkstyle {
-    toolVersion = '8.18'
-    configFile = rootProject.file('gradle/checkstyle/checkstyle.xml')
-  }
 
   def check = tasks.findByName('check')
   if (check) project.rootProject.tasks.releaseCheck.dependsOn check
@@ -43,6 +37,10 @@ subprojects {
     ext.year = Calendar.getInstance().get(Calendar.YEAR)
     skipExistingHeaders = true
   }
+}
+
+wrapper {
+  gradleVersion = '5.4.1'
 }
 
 defaultTasks 'build'

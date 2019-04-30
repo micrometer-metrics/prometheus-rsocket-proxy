@@ -28,11 +28,11 @@ if(hasProperty('dockerUser') && hasProperty('dockerPassword')) {
 		registryCredentials {
 			username = dockerUser
 			password = dockerPassword
-			email = 'jkschneider@gmail.com'
+			email = 'jschneider@pivotal.io'
 		}
 
 		springBootApplication {
-			tag = "$dockerUser/multifoundationmetrics"
+			tag = "$dockerUser/prometheus-rsocket-proxy"
 		}
 	}
 }

@@ -1,3 +1,18 @@
+/**
+ * Copyright 2019 Pivotal Software, Inc.
+ * <p>
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * <p>
+ * https://www.apache.org/licenses/LICENSE-2.0
+ * <p>
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package io.micrometer.prometheus.rsocket;
 
 import io.netty.buffer.ByteBufUtil;
@@ -13,8 +28,6 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
-import reactor.core.Disposable;
-import reactor.core.Disposables;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import sun.security.rsa.RSAKeyPairGenerator;
@@ -41,7 +54,6 @@ public class Main {
 @RestController
 class PrometheusController {
   private AtomicReference<PMap<RSocket, KeyPair>> scrapableApps = new AtomicReference<>(HashTreePMap.empty());
-  private Disposable.Swap server = Disposables.swap();
 
   @PostConstruct
   public void connect() {
@@ -61,7 +73,7 @@ class PrometheusController {
       })
       .transport(TcpServerTransport.create(7001))
       .start()
-      .subscribe(server -> this.server.replace(server));
+      .subscribe();
   }
 
   @GetMapping("/prometheus")
@@ -74,8 +86,13 @@ class PrometheusController {
           .getKey()
           .requestResponse(DefaultPayload.create(
             Base64.getEncoder().encodeToString(keyPair.getPublic().getEncoded())))
-          .map(payload -> decrypt(keyPair, ByteBufUtil.getBytes(payload.sliceMetadata()), ByteBufUtil.getBytes(payload.sliceData())))
-          .log();
+          .map(payload -> {
+            try {
+              return decrypt(keyPair, ByteBufUtil.getBytes(payload.sliceMetadata()), ByteBufUtil.getBytes(payload.sliceData()));
+            } finally {
+              payload.release();
+            }
+          });
       })
       .collect(Collectors.joining("\n"));
   }
