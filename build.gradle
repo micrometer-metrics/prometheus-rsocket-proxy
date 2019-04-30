@@ -17,6 +17,10 @@ apply plugin: 'io.spring.release'
 allprojects {
   apply plugin: 'io.spring.license'
 
+  afterEvaluate { project ->
+    println "I'm building $project.name with version $project.version"
+  }
+
   group = 'io.micrometer.prometheus'
 
   description = 'RSocket proxy to pull metrics from applications that can only open egress'
@@ -27,11 +31,6 @@ subprojects {
 
   def check = tasks.findByName('check')
   if (check) project.rootProject.tasks.releaseCheck.dependsOn check
-
-  //noinspection GroovyAssignabilityCheck
-  test {
-    useJUnitPlatform()
-  }
 
   license {
     ext.year = Calendar.getInstance().get(Calendar.YEAR)
