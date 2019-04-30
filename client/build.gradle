@@ -1,0 +1,20 @@
+apply plugin: 'io.spring.publishing'
+
+contacts {
+	'jschneider@pivotal.io' {
+		moniker 'Jon Schneider'
+		github 'jkschneider'
+	}
+}
+
+bintray.labels = ['prometheus', 'micrometer', 'metrics', 'rsocket']
+
+repositories {
+	mavenCentral()
+	maven { url 'https://repo.spring.io/milestone' }
+}
+
+dependencies {
+	implementation 'org.springframework.boot:spring-boot-starter-rsocket:latest.release'
+	implementation 'io.micrometer:micrometer-registry-prometheus:latest.release'
+}

@@ -1,0 +1,38 @@
+plugins {
+	id 'org.springframework.boot' version '2.2.0.M2'
+	id 'java'
+	id 'com.bmuschko.docker-spring-boot-application' version '4.7.0'
+}
+
+apply plugin: 'io.spring.dependency-management'
+
+repositories {
+	mavenCentral()
+	maven { url 'https://repo.spring.io/snapshot' }
+	maven { url 'https://repo.spring.io/milestone' }
+}
+
+dependencies {
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	implementation 'org.springframework.boot:spring-boot-starter-rsocket'
+	implementation 'org.springframework.boot:spring-boot-starter-webflux'
+	implementation 'org.pcollections:pcollections:latest.release'
+
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testImplementation 'io.projectreactor:reactor-test'
+	testImplementation 'io.micrometer:micrometer-registry-prometheus'
+}
+
+if(hasProperty('dockerUser') && hasProperty('dockerPassword')) {
+	docker {
+		registryCredentials {
+			username = dockerUser
+			password = dockerPassword
+			email = 'jkschneider@gmail.com'
+		}
+
+		springBootApplication {
+			tag = "$dockerUser/multifoundationmetrics"
+		}
+	}
+}

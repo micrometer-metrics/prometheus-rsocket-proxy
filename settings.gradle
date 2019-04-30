@@ -1,0 +1,22 @@
+pluginManagement {
+	repositories {
+		maven { url 'https://repo.spring.io/snapshot' }
+		maven { url 'https://repo.spring.io/milestone' }
+		gradlePluginPortal()
+	}
+	resolutionStrategy {
+		eachPlugin {
+			if (requested.id.id == 'org.springframework.boot') {
+				useModule("org.springframework.boot:spring-boot-gradle-plugin:${requested.version}")
+			}
+		}
+	}
+}
+
+rootProject.name = 'prometheus-rsocket-proxy'
+
+include 'prometheus-rsocket-proxy-server'
+project(':prometheus-rsocket-proxy-server').projectDir = new File(rootProject.projectDir, 'server')
+
+include 'prometheus-rsocket-proxy-client'
+project(':prometheus-rsocket-proxy-client').projectDir = new File(rootProject.projectDir, 'client')

@@ -1,0 +1,48 @@
+buildscript {
+  repositories {
+    jcenter()
+    maven { url 'https://plugins.gradle.org/m2/' }
+    mavenLocal()
+  }
+  dependencies {
+    classpath 'io.spring.gradle:spring-release-plugin:0.20.1'
+    classpath 'com.netflix.nebula:nebula-project-plugin:3.4.0'
+  }
+
+  configurations.classpath.resolutionStrategy.cacheDynamicVersionsFor 0, 'minutes'
+}
+
+apply plugin: 'io.spring.release'
+
+allprojects {
+  apply plugin: 'io.spring.license'
+
+  group = 'io.micrometer.prometheus'
+
+  description = 'RSocket proxy to pull metrics from applications that can only open egress'
+}
+
+subprojects {
+  apply plugin: 'java'
+  apply plugin: 'checkstyle'
+
+  checkstyle {
+    toolVersion = '8.18'
+    configFile = rootProject.file('gradle/checkstyle/checkstyle.xml')
+  }
+
+  def check = tasks.findByName('check')
+  if (check) project.rootProject.tasks.releaseCheck.dependsOn check
+
+  //noinspection GroovyAssignabilityCheck
+  test {
+    useJUnitPlatform()
+  }
+
+  license {
+    ext.year = Calendar.getInstance().get(Calendar.YEAR)
+    skipExistingHeaders = true
+  }
+}
+
+defaultTasks 'build'
