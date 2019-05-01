@@ -76,7 +76,7 @@ class PrometheusController {
       .subscribe();
   }
 
-  @GetMapping("/prometheus")
+  @GetMapping("/metrics")
   public Mono<String> prometheus() {
     return Flux.fromIterable(scrapableApps.get().entrySet())
       .flatMap(appAndKeyPair -> {
