@@ -30,6 +30,7 @@ import javax.crypto.SecretKey;
 import java.security.KeyFactory;
 import java.security.PublicKey;
 import java.security.spec.X509EncodedKeySpec;
+import java.time.Duration;
 import java.util.Base64;
 
 /**
@@ -39,13 +40,13 @@ import java.util.Base64;
  */
 public class PrometheusRSocketClient {
   public static Mono<RSocket> connect(PrometheusMeterRegistry registry, String bindAddress, int port) {
-    return RSocketFactory.connect()
+    Mono<RSocket> rsocket = RSocketFactory.connect()
       .acceptor(
         rSocket ->
           new AbstractRSocket() {
             @Override
             public Mono<Payload> requestResponse(Payload payload) {
-              try{
+              try {
                 KeyGenerator generator = KeyGenerator.getInstance("AES");
                 generator.init(128);
                 SecretKey secKey = generator.generateKey();
@@ -70,5 +71,9 @@ public class PrometheusRSocketClient {
           })
       .transport(TcpClientTransport.create(bindAddress, port))
       .start();
+
+    new ReconnectingRSocket(rsocket, Duration.ofSeconds(10), Duration.ofMinutes(10));
+
+    return rsocket;
   }
 }

@@ -28,7 +28,6 @@ public class SampleClient {
     PrometheusMeterRegistry meterRegistry = new PrometheusMeterRegistry(PrometheusConfig.DEFAULT);
 
     PrometheusRSocketClient.connect(meterRegistry, "localhost", 7001)
-      .retry(t -> true) // retry indefinitely
       .subscribe();
 
     Random r = new Random();
