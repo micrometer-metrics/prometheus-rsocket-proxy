@@ -15,13 +15,15 @@
  */
 package io.micrometer.prometheus.rsocket;
 
+import io.micrometer.core.instrument.Counter;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.rsocket.AbstractRSocket;
+import io.rsocket.Closeable;
 import io.rsocket.Payload;
-import io.rsocket.RSocket;
 import io.rsocket.RSocketFactory;
 import io.rsocket.transport.netty.client.TcpClientTransport;
 import io.rsocket.util.DefaultPayload;
+import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import javax.crypto.Cipher;
@@ -30,7 +32,6 @@ import javax.crypto.SecretKey;
 import java.security.KeyFactory;
 import java.security.PublicKey;
 import java.security.spec.X509EncodedKeySpec;
-import java.time.Duration;
 import java.util.Base64;
 
 /**
@@ -39,8 +40,15 @@ import java.util.Base64;
  * from each client.
  */
 public class PrometheusRSocketClient {
-  public static Mono<RSocket> connect(PrometheusMeterRegistry registry, String bindAddress, int port) {
-    Mono<RSocket> rsocket = RSocketFactory.connect()
+  public static Flux<Void> connect(PrometheusMeterRegistry registry, String bindAddress, int port) {
+    Counter attempts = Counter.builder("prometheus.connection.attempts")
+      .description("Attempts at making an outbound RSocket connection to the Prometheus proxy")
+      .baseUnit("attempts")
+      .register(registry);
+
+    attempts.increment();
+
+    return RSocketFactory.connect()
       .acceptor(
         rSocket ->
           new AbstractRSocket() {
@@ -70,10 +78,11 @@ public class PrometheusRSocketClient {
             }
           })
       .transport(TcpClientTransport.create(bindAddress, port))
-      .start();
-
-    new ReconnectingRSocket(rsocket, Duration.ofSeconds(10), Duration.ofMinutes(10));
-
-    return rsocket;
+      .start()
+      .flatMap(Closeable::onClose)
+      .repeat(() -> {
+        attempts.increment();
+        return true;
+      });
   }
 }

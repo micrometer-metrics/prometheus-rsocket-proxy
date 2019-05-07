@@ -1,6 +1,5 @@
 plugins {
 	id 'org.springframework.boot' version '2.2.0.M2'
-	id 'java'
 	id 'com.bmuschko.docker-spring-boot-application' version '4.7.0'
 }
 
@@ -17,10 +16,11 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-rsocket'
 	implementation 'org.springframework.boot:spring-boot-starter-webflux'
 	implementation 'org.pcollections:pcollections:latest.release'
+	implementation 'io.micrometer:micrometer-registry-prometheus'
+	implementation 'io.rsocket:rsocket-micrometer'
 
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'io.projectreactor:reactor-test'
-	testImplementation 'io.micrometer:micrometer-registry-prometheus'
 }
 
 if(hasProperty('dockerUser') && hasProperty('dockerPassword')) {

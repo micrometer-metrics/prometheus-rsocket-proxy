@@ -20,14 +20,17 @@ import io.micrometer.prometheus.PrometheusConfig;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
 import reactor.core.publisher.Flux;
 
+import java.lang.management.ManagementFactory;
 import java.time.Duration;
 import java.util.Random;
 
 public class SampleClient {
   public static void main(String[] args) {
     PrometheusMeterRegistry meterRegistry = new PrometheusMeterRegistry(PrometheusConfig.DEFAULT);
+    meterRegistry.config().commonTags("process.id", ManagementFactory.getRuntimeMXBean().getName());
 
     PrometheusRSocketClient.connect(meterRegistry, "localhost", 7001)
+      .retryBackoff(Long.MAX_VALUE, Duration.ofSeconds(10), Duration.ofMinutes(10))
       .subscribe();
 
     Random r = new Random();

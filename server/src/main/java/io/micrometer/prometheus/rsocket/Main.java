@@ -15,11 +15,14 @@
  */
 package io.micrometer.prometheus.rsocket;
 
+import io.micrometer.core.instrument.util.StringUtils;
+import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.netty.buffer.ByteBufUtil;
 import io.rsocket.AbstractRSocket;
 import io.rsocket.RSocket;
 import io.rsocket.RSocketFactory;
 import io.rsocket.frame.decoder.PayloadDecoder;
+import io.rsocket.micrometer.MicrometerRSocketInterceptor;
 import io.rsocket.transport.netty.server.TcpServerTransport;
 import io.rsocket.util.DefaultPayload;
 import org.pcollections.HashTreePMap;
@@ -36,10 +39,12 @@ import javax.annotation.PostConstruct;
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
+import java.nio.channels.ClosedChannelException;
 import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.PrivateKey;
 import java.security.spec.PKCS8EncodedKeySpec;
+import java.time.Duration;
 import java.util.Base64;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
@@ -55,6 +60,19 @@ public class Main {
 class PrometheusController {
   private AtomicReference<PMap<RSocket, KeyPair>> scrapableApps = new AtomicReference<>(HashTreePMap.empty());
 
+  private final PrometheusMeterRegistry meterRegistry;
+  private final MicrometerRSocketInterceptor metricsInterceptor;
+
+  PrometheusController(PrometheusMeterRegistry meterRegistry) {
+    this.meterRegistry = meterRegistry;
+    this.metricsInterceptor = new MicrometerRSocketInterceptor(meterRegistry);
+    meterRegistry.gauge("scrape.active.connections", scrapableApps, apps -> apps.get().size());
+
+    Flux.interval(Duration.ofSeconds(5))
+      .doOnEach(n -> meterRegistry.counter("five.second.tick").increment())
+      .subscribe();
+  }
+
   @PostConstruct
   public void connect() {
     RSAKeyPairGenerator generator = new RSAKeyPairGenerator();
@@ -62,9 +80,10 @@ class PrometheusController {
     RSocketFactory.receive()
       .frameDecoder(PayloadDecoder.ZERO_COPY)
       .acceptor((setup, sendingSocket) -> {
-        scrapableApps.getAndUpdate(apps -> apps.plus(sendingSocket, generator.generateKeyPair()));
+        scrapableApps.getAndUpdate(apps -> apps.plus(metricsInterceptor.apply(sendingSocket), generator.generateKeyPair()));
 
-        sendingSocket.onClose()
+        sendingSocket
+          .onClose()
           .doOnEach(n -> scrapableApps.getAndUpdate(apps -> apps.minus(sendingSocket)))
           .subscribe();
 
@@ -81,9 +100,8 @@ class PrometheusController {
     return Flux.fromIterable(scrapableApps.get().entrySet())
       .flatMap(appAndKeyPair -> {
         KeyPair keyPair = appAndKeyPair.getValue();
-
-        return appAndKeyPair
-          .getKey()
+        RSocket rsocket = appAndKeyPair.getKey();
+        return rsocket
           .requestResponse(DefaultPayload.create(
             Base64.getEncoder().encodeToString(keyPair.getPublic().getEncoded())))
           .map(payload -> {
@@ -92,8 +110,15 @@ class PrometheusController {
             } finally {
               payload.release();
             }
+          })
+          .onErrorResume(throwable -> {
+            if (throwable instanceof ClosedChannelException) {
+              scrapableApps.getAndUpdate(apps -> apps.minus(rsocket));
+            }
+            return Mono.empty();
           });
       })
+      .concatWithValues(meterRegistry.scrape())
       .collect(Collectors.joining("\n"));
   }
 
@@ -106,7 +131,7 @@ class PrometheusController {
       cipher.init(Cipher.PRIVATE_KEY, privateKey);
       byte[] decryptedKey = cipher.doFinal(encryptedKey);
 
-      SecretKey originalKey = new SecretKeySpec(decryptedKey , 0, decryptedKey .length, "AES");
+      SecretKey originalKey = new SecretKeySpec(decryptedKey, 0, decryptedKey.length, "AES");
       Cipher aesCipher = Cipher.getInstance("AES");
       aesCipher.init(Cipher.DECRYPT_MODE, originalKey);
 
