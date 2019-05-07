@@ -15,7 +15,6 @@
  */
 package io.micrometer.prometheus.rsocket;
 
-import io.micrometer.core.instrument.util.StringUtils;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.netty.buffer.ByteBufUtil;
 import io.rsocket.AbstractRSocket;
