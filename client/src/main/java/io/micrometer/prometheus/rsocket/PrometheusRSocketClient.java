@@ -29,10 +29,12 @@ import reactor.core.publisher.Mono;
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
+import java.io.ByteArrayOutputStream;
 import java.security.KeyFactory;
 import java.security.PublicKey;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
+import java.util.zip.GZIPOutputStream;
 
 /**
  * Establishes a persistent bidirectional RSocket connection to a Prometheus RSocket proxy.
@@ -61,7 +63,13 @@ public class PrometheusRSocketClient {
 
                 Cipher aesCipher = Cipher.getInstance("AES");
                 aesCipher.init(Cipher.ENCRYPT_MODE, secKey);
-                byte[] encryptedMetrics = aesCipher.doFinal(registry.scrape().getBytes());
+
+                ByteArrayOutputStream bos = new ByteArrayOutputStream();
+                try(GZIPOutputStream gos = new GZIPOutputStream(bos)) {
+                  gos.write(registry.scrape().getBytes());
+                }
+
+                byte[] encryptedMetrics = aesCipher.doFinal(bos.toByteArray());
 
                 X509EncodedKeySpec keySpec = new X509EncodedKeySpec(Base64.getDecoder().decode(payload.getDataUtf8()));
                 KeyFactory keyFactory = KeyFactory.getInstance("RSA");

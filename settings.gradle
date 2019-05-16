@@ -15,8 +15,11 @@ pluginManagement {
 
 rootProject.name = 'prometheus-rsocket-proxy'
 
-include 'prometheus-rsocket-proxy-server'
-project(':prometheus-rsocket-proxy-server').projectDir = new File(rootProject.projectDir, 'server')
+include 'prometheus-rsocket-server'
+project(':prometheus-rsocket-server').projectDir = new File(rootProject.projectDir, 'server')
 
-include 'prometheus-rsocket-proxy-client'
-project(':prometheus-rsocket-proxy-client').projectDir = new File(rootProject.projectDir, 'client')
+include 'prometheus-rsocket-client'
+project(':prometheus-rsocket-client').projectDir = new File(rootProject.projectDir, 'client')
+
+include 'prometheus-rsocket-starter'
+project(':prometheus-rsocket-starter').projectDir = new File(rootProject.projectDir, 'starter-spring')

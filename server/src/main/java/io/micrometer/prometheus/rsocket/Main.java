@@ -15,6 +15,9 @@
  */
 package io.micrometer.prometheus.rsocket;
 
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.DistributionSummary;
+import io.micrometer.core.instrument.Timer;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.netty.buffer.ByteBufUtil;
 import io.rsocket.AbstractRSocket;
@@ -38,7 +41,9 @@ import javax.annotation.PostConstruct;
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
+import java.io.*;
 import java.nio.channels.ClosedChannelException;
+import java.nio.charset.StandardCharsets;
 import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.PrivateKey;
@@ -47,6 +52,7 @@ import java.time.Duration;
 import java.util.Base64;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
+import java.util.zip.GZIPInputStream;
 
 @SpringBootApplication
 public class Main {
@@ -60,12 +66,31 @@ class PrometheusController {
   private AtomicReference<PMap<RSocket, KeyPair>> scrapableApps = new AtomicReference<>(HashTreePMap.empty());
 
   private final PrometheusMeterRegistry meterRegistry;
+  private final Timer scrapeTimerSuccess;
+  private final Timer scrapeTimerClosed;
+  private final Counter scrapeSocketsClosed;
+  private final Timer scrapeTimerError;
+  private final DistributionSummary scrapePayload;
   private final MicrometerRSocketInterceptor metricsInterceptor;
 
   PrometheusController(PrometheusMeterRegistry meterRegistry) {
     this.meterRegistry = meterRegistry;
     this.metricsInterceptor = new MicrometerRSocketInterceptor(meterRegistry);
-    meterRegistry.gauge("scrape.active.connections", scrapableApps, apps -> apps.get().size());
+    meterRegistry.gauge("prometheus.proxy.scrape.active.connections", scrapableApps, apps -> apps.get().size());
+
+    this.scrapeTimerSuccess = Timer.builder("prometheus.proxy.scrape")
+      .tag("outcome", "success")
+      .publishPercentileHistogram()
+      .register(meterRegistry);
+
+    this.scrapeTimerClosed = meterRegistry.timer("prometheus.proxy.scrape", "outcome", "closed");
+    this.scrapeTimerError = meterRegistry.timer("prometheus.proxy.scrape", "outcome", "error");
+    this.scrapePayload = DistributionSummary.builder("prometheus.proxy.scrape.payload")
+      .publishPercentileHistogram()
+      .baseUnit("bytes")
+      .register(meterRegistry);
+
+    this.scrapeSocketsClosed = meterRegistry.counter("prometheus.proxy.scrape.sockets.closed");
 
     Flux.interval(Duration.ofSeconds(5))
       .doOnEach(n -> meterRegistry.counter("five.second.tick").increment())
@@ -83,7 +108,10 @@ class PrometheusController {
 
         sendingSocket
           .onClose()
-          .doOnEach(n -> scrapableApps.getAndUpdate(apps -> apps.minus(sendingSocket)))
+          .doOnEach(n -> {
+            scrapeSocketsClosed.increment();
+            scrapableApps.getAndUpdate(apps -> apps.minus(sendingSocket));
+          })
           .subscribe();
 
         return Mono.just(new AbstractRSocket() {
@@ -94,25 +122,45 @@ class PrometheusController {
       .subscribe();
   }
 
-  @GetMapping("/metrics")
+  @GetMapping(value = "/metrics", produces = "text/plain")
   public Mono<String> prometheus() {
-    return Flux.fromIterable(scrapableApps.get().entrySet())
+    return Flux
+      .fromIterable(scrapableApps.get().entrySet())
       .flatMap(appAndKeyPair -> {
         KeyPair keyPair = appAndKeyPair.getValue();
         RSocket rsocket = appAndKeyPair.getKey();
+        Timer.Sample sample = Timer.start();
         return rsocket
           .requestResponse(DefaultPayload.create(
             Base64.getEncoder().encodeToString(keyPair.getPublic().getEncoded())))
           .map(payload -> {
             try {
-              return decrypt(keyPair, ByteBufUtil.getBytes(payload.sliceMetadata()), ByteBufUtil.getBytes(payload.sliceData()));
+              byte[] decrypted = decrypt(keyPair, ByteBufUtil.getBytes(payload.sliceMetadata()), ByteBufUtil.getBytes(payload.sliceData()));
+              ByteArrayInputStream bis = new ByteArrayInputStream(decrypted);
+              try (GZIPInputStream gis = new GZIPInputStream(bis);
+                   BufferedReader br = new BufferedReader(new InputStreamReader(gis, StandardCharsets.UTF_8))) {
+                StringBuilder sb = new StringBuilder();
+                String line;
+                while ((line = br.readLine()) != null) {
+                  sb.append(line);
+                }
+                String uncompressed = sb.toString();
+                scrapePayload.record(uncompressed.length());
+                return uncompressed;
+              }
+            } catch (IOException e) {
+              throw new UncheckedIOException(e);
             } finally {
               payload.release();
+              sample.stop(scrapeTimerSuccess);
             }
           })
           .onErrorResume(throwable -> {
             if (throwable instanceof ClosedChannelException) {
               scrapableApps.getAndUpdate(apps -> apps.minus(rsocket));
+              sample.stop(scrapeTimerClosed);
+            } else {
+              sample.stop(scrapeTimerError);
             }
             return Mono.empty();
           });
@@ -121,7 +169,7 @@ class PrometheusController {
       .collect(Collectors.joining("\n"));
   }
 
-  private String decrypt(KeyPair keyPair, byte[] encryptedKey, byte[] data) {
+  private byte[] decrypt(KeyPair keyPair, byte[] encryptedKey, byte[] data) {
     try {
       PrivateKey privateKey = KeyFactory.getInstance("RSA")
         .generatePrivate(new PKCS8EncodedKeySpec(keyPair.getPrivate().getEncoded()));
@@ -134,7 +182,7 @@ class PrometheusController {
       Cipher aesCipher = Cipher.getInstance("AES");
       aesCipher.init(Cipher.DECRYPT_MODE, originalKey);
 
-      return new String(aesCipher.doFinal(data));
+      return aesCipher.doFinal(data);
     } catch (Throwable e) {
       throw new IllegalStateException(e);
     }
