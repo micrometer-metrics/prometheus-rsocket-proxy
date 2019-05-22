@@ -17,24 +17,24 @@ package io.micrometer.prometheus.rsocket;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
-import io.rsocket.AbstractRSocket;
-import io.rsocket.Closeable;
-import io.rsocket.Payload;
-import io.rsocket.RSocketFactory;
+import io.rsocket.*;
 import io.rsocket.transport.netty.client.TcpClientTransport;
 import io.rsocket.util.DefaultPayload;
+import org.xerial.snappy.Snappy;
+import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
-import java.io.ByteArrayOutputStream;
+import java.nio.ByteBuffer;
 import java.security.KeyFactory;
 import java.security.PublicKey;
 import java.security.spec.X509EncodedKeySpec;
-import java.util.Base64;
-import java.util.zip.GZIPOutputStream;
+import java.time.Duration;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.UnaryOperator;
 
 /**
  * Establishes a persistent bidirectional RSocket connection to a Prometheus RSocket proxy.
@@ -42,55 +42,93 @@ import java.util.zip.GZIPOutputStream;
  * from each client.
  */
 public class PrometheusRSocketClient {
-  public static Flux<Void> connect(PrometheusMeterRegistry registry, String bindAddress, int port) {
+  private final PrometheusMeterRegistry registry;
+  private final Disposable connection;
+  private AtomicReference<ByteBuffer> latestKey = new AtomicReference<>();
+  private final AbstractRSocket rsocket = new AbstractRSocket() {
+    @Override
+    public Mono<Payload> requestResponse(Payload payload) {
+      ByteBuffer key = payload.getData();
+      latestKey.set(key);
+      return Mono.just(scrapePayload(key));
+    }
+
+    @Override
+    public Mono<Void> fireAndForget(Payload payload) {
+      latestKey.set(payload.getData());
+      return Mono.empty();
+    }
+  };
+  private boolean pushOnDisconnect = false;
+  private RSocket sendingSocket;
+
+  public PrometheusRSocketClient(PrometheusMeterRegistry registry, TcpClientTransport transport,
+                                 UnaryOperator<Flux<Void>> customizeAndRetry) {
+    this.registry = registry;
     Counter attempts = Counter.builder("prometheus.connection.attempts")
       .description("Attempts at making an outbound RSocket connection to the Prometheus proxy")
       .baseUnit("attempts")
       .register(registry);
-
     attempts.increment();
 
-    return RSocketFactory.connect()
-      .acceptor(
-        rSocket ->
-          new AbstractRSocket() {
-            @Override
-            public Mono<Payload> requestResponse(Payload payload) {
-              try {
-                KeyGenerator generator = KeyGenerator.getInstance("AES");
-                generator.init(128);
-                SecretKey secKey = generator.generateKey();
-
-                Cipher aesCipher = Cipher.getInstance("AES");
-                aesCipher.init(Cipher.ENCRYPT_MODE, secKey);
-
-                ByteArrayOutputStream bos = new ByteArrayOutputStream();
-                try(GZIPOutputStream gos = new GZIPOutputStream(bos)) {
-                  gos.write(registry.scrape().getBytes());
-                }
-
-                byte[] encryptedMetrics = aesCipher.doFinal(bos.toByteArray());
-
-                X509EncodedKeySpec keySpec = new X509EncodedKeySpec(Base64.getDecoder().decode(payload.getDataUtf8()));
-                KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-                PublicKey publicKey = keyFactory.generatePublic(keySpec);
-
-                Cipher cipher = Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding");
-                cipher.init(Cipher.PUBLIC_KEY, publicKey);
-                byte[] encryptedPublicKey = cipher.doFinal(secKey.getEncoded());
-
-                return Mono.just(DefaultPayload.create(encryptedMetrics, encryptedPublicKey));
-              } catch (Throwable e) {
-                throw new IllegalArgumentException(e);
-              }
-            }
-          })
-      .transport(TcpClientTransport.create(bindAddress, port))
+    this.connection = customizeAndRetry.apply(RSocketFactory.connect()
+      .acceptor(r -> {
+        this.sendingSocket = r;
+        return rsocket;
+      })
+      .transport(transport)
       .start()
+      .doOnCancel(() -> {
+        if (pushOnDisconnect) {
+          ByteBuffer key = latestKey.get();
+          if (key != null) {
+            sendingSocket
+              .fireAndForget(scrapePayload(key))
+              .block(Duration.ofSeconds(10));
+          }
+        }
+      })
       .flatMap(Closeable::onClose)
       .repeat(() -> {
         attempts.increment();
         return true;
-      });
+      })
+    ).subscribe();
+  }
+
+  public void close() {
+    connection.dispose();
+  }
+
+  public void pushAndClose() {
+    this.pushOnDisconnect = true;
+    close();
+  }
+
+  private Payload scrapePayload(ByteBuffer encodedKeyBuffer) {
+    try {
+      KeyGenerator generator = KeyGenerator.getInstance("AES");
+      generator.init(128);
+      SecretKey secKey = generator.generateKey();
+
+      Cipher aesCipher = Cipher.getInstance("AES");
+      aesCipher.init(Cipher.ENCRYPT_MODE, secKey);
+      byte[] encryptedMetrics = aesCipher.doFinal(Snappy.compress(registry.scrape()));
+
+      byte[] encodedKey = new byte[encodedKeyBuffer.capacity()];
+      encodedKeyBuffer.get(encodedKey, 0, encodedKey.length);
+
+      X509EncodedKeySpec keySpec = new X509EncodedKeySpec(encodedKey);
+      KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+      PublicKey publicKey = keyFactory.generatePublic(keySpec);
+
+      Cipher cipher = Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding");
+      cipher.init(Cipher.PUBLIC_KEY, publicKey);
+      byte[] encryptedPublicKey = cipher.doFinal(secKey.getEncoded());
+
+      return DefaultPayload.create(encryptedMetrics, encryptedPublicKey);
+    } catch (Throwable e) {
+      throw new IllegalArgumentException(e);
+    }
   }
 }

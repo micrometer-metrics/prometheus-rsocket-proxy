@@ -19,26 +19,33 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.prometheus.PrometheusConfig;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.rsocket.transport.netty.client.TcpClientTransport;
+import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 
 import java.lang.management.ManagementFactory;
 import java.time.Duration;
 import java.util.Random;
 
-public class SampleClient {
-  public static void main(String[] args) {
+public class SampleServerlessClient {
+  public static void main(String[] args) throws InterruptedException {
     PrometheusMeterRegistry meterRegistry = new PrometheusMeterRegistry(PrometheusConfig.DEFAULT);
     meterRegistry.config().commonTags("process.id", ManagementFactory.getRuntimeMXBean().getName());
 
-    new PrometheusRSocketClient(meterRegistry,
+    PrometheusRSocketClient client = new PrometheusRSocketClient(meterRegistry,
       TcpClientTransport.create("localhost", 7001),
       c -> c.retryBackoff(Long.MAX_VALUE, Duration.ofSeconds(10), Duration.ofMinutes(10)));
 
     Random r = new Random();
 
     Counter counter = meterRegistry.counter("my.counter", "instance", Integer.toString(r.nextInt(10)));
-    Flux.interval(Duration.ofMillis(100))
+
+    Disposable counts = Flux.interval(Duration.ofMillis(100))
       .doOnEach(n -> counter.increment())
-      .blockLast();
+      .subscribe();
+
+    Thread.sleep(1000);
+
+    client.pushAndClose();
+    counts.dispose();
   }
 }

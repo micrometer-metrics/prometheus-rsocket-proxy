@@ -1,0 +1,39 @@
+plugins {
+  id 'org.springframework.boot' version '2.2.0.M2'
+  id 'com.bmuschko.docker-spring-boot-application' version '4.7.0'
+}
+
+apply plugin: 'io.spring.dependency-management'
+
+repositories {
+  mavenCentral()
+  maven { url 'https://repo.spring.io/snapshot' }
+  maven { url 'https://repo.spring.io/milestone' }
+}
+
+dependencies {
+  implementation 'org.springframework.boot:spring-boot-starter-actuator'
+  implementation 'org.springframework.boot:spring-boot-starter-rsocket'
+  implementation 'org.springframework.boot:spring-boot-starter-webflux'
+  implementation 'org.pcollections:pcollections:latest.release'
+  implementation 'io.micrometer:micrometer-registry-prometheus'
+  implementation 'io.rsocket:rsocket-micrometer'
+  implementation 'org.xerial.snappy:snappy-java:latest.release'
+
+  testImplementation 'org.springframework.boot:spring-boot-starter-test'
+  testImplementation 'io.projectreactor:reactor-test'
+}
+
+if (hasProperty('dockerUser') && hasProperty('dockerPassword')) {
+  docker {
+    registryCredentials {
+      username = dockerUser
+      password = dockerPassword
+      email = 'jschneider@pivotal.io'
+    }
+
+    springBootApplication {
+      tag = "$dockerUser/prometheus-rsocket-proxy"
+    }
+  }
+}

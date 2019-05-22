@@ -21,7 +21,7 @@ allprojects {
     println "I'm building $project.name with version $project.version"
   }
 
-  group = 'io.micrometer.registry'
+  group = 'io.micrometer.publishing'
 
   description = 'RSocket proxy to pull metrics from applications that can only open egress'
 }

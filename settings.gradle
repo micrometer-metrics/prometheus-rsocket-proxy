@@ -1,25 +1,25 @@
 pluginManagement {
-	repositories {
-		maven { url 'https://repo.spring.io/snapshot' }
-		maven { url 'https://repo.spring.io/milestone' }
-		gradlePluginPortal()
-	}
-	resolutionStrategy {
-		eachPlugin {
-			if (requested.id.id == 'org.springframework.boot') {
-				useModule("org.springframework.boot:spring-boot-gradle-plugin:${requested.version}")
-			}
-		}
-	}
+  repositories {
+    maven { url 'https://repo.spring.io/snapshot' }
+    maven { url 'https://repo.spring.io/milestone' }
+    gradlePluginPortal()
+  }
+  resolutionStrategy {
+    eachPlugin {
+      if (requested.id.id == 'org.springframework.boot') {
+        useModule("org.springframework.boot:spring-boot-gradle-plugin:${requested.version}")
+      }
+    }
+  }
 }
 
 rootProject.name = 'prometheus-rsocket-proxy'
 
-include 'prometheus-rsocket-server'
-project(':prometheus-rsocket-server').projectDir = new File(rootProject.projectDir, 'server')
+include 'prometheus-rsocket-proxy'
+project(':prometheus-rsocket-proxy').projectDir = new File(rootProject.projectDir, 'proxy')
 
 include 'prometheus-rsocket-client'
 project(':prometheus-rsocket-client').projectDir = new File(rootProject.projectDir, 'client')
 
-//include 'prometheus-rsocket-starter'
-//project(':prometheus-rsocket-starter').projectDir = new File(rootProject.projectDir, 'starter-spring')
+include 'prometheus-rsocket-spring'
+project(':prometheus-rsocket-spring').projectDir = new File(rootProject.projectDir, 'starter-spring')

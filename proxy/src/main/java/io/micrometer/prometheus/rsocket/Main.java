@@ -19,8 +19,10 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.Timer;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
+import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.rsocket.AbstractRSocket;
+import io.rsocket.Payload;
 import io.rsocket.RSocket;
 import io.rsocket.RSocketFactory;
 import io.rsocket.frame.decoder.PayloadDecoder;
@@ -33,6 +35,7 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.xerial.snappy.Snappy;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import sun.security.rsa.RSAKeyPairGenerator;
@@ -41,18 +44,15 @@ import javax.annotation.PostConstruct;
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
-import java.io.*;
+import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.channels.ClosedChannelException;
-import java.nio.charset.StandardCharsets;
 import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.PrivateKey;
 import java.security.spec.PKCS8EncodedKeySpec;
-import java.time.Duration;
-import java.util.Base64;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
-import java.util.zip.GZIPInputStream;
 
 @SpringBootApplication
 public class Main {
@@ -63,8 +63,6 @@ public class Main {
 
 @RestController
 class PrometheusController {
-  private AtomicReference<PMap<RSocket, KeyPair>> scrapableApps = new AtomicReference<>(HashTreePMap.empty());
-
   private final PrometheusMeterRegistry meterRegistry;
   private final Timer scrapeTimerSuccess;
   private final Timer scrapeTimerClosed;
@@ -72,6 +70,7 @@ class PrometheusController {
   private final Timer scrapeTimerError;
   private final DistributionSummary scrapePayload;
   private final MicrometerRSocketInterceptor metricsInterceptor;
+  private AtomicReference<PMap<RSocket, ConnectionState>> scrapableApps = new AtomicReference<>(HashTreePMap.empty());
 
   PrometheusController(PrometheusMeterRegistry meterRegistry) {
     this.meterRegistry = meterRegistry;
@@ -91,10 +90,6 @@ class PrometheusController {
       .register(meterRegistry);
 
     this.scrapeSocketsClosed = meterRegistry.counter("prometheus.proxy.scrape.sockets.closed");
-
-    Flux.interval(Duration.ofSeconds(5))
-      .doOnEach(n -> meterRegistry.counter("five.second.tick").increment())
-      .subscribe();
   }
 
   @PostConstruct
@@ -104,17 +99,23 @@ class PrometheusController {
     RSocketFactory.receive()
       .frameDecoder(PayloadDecoder.ZERO_COPY)
       .acceptor((setup, sendingSocket) -> {
-        scrapableApps.getAndUpdate(apps -> apps.plus(metricsInterceptor.apply(sendingSocket), generator.generateKeyPair()));
+        ConnectionState connectionState = new ConnectionState(generator.generateKeyPair());
+        scrapableApps.getAndUpdate(apps -> apps.plus(metricsInterceptor.apply(sendingSocket), connectionState));
 
-        sendingSocket
-          .onClose()
-          .doOnEach(n -> {
-            scrapeSocketsClosed.increment();
-            scrapableApps.getAndUpdate(apps -> apps.minus(sendingSocket));
-          })
+        // for use by the client to push metrics as it's dying if this happens before the first scrape
+        sendingSocket.fireAndForget(connectionState.createKeyPayload())
           .subscribe();
 
         return Mono.just(new AbstractRSocket() {
+          @Override
+          public Mono<Void> fireAndForget(Payload payload) {
+            try {
+              connectionState.setDyingPush(connectionState.receiveScrapePayload(payload, null));
+            } catch (Throwable t) {
+              t.printStackTrace();
+            }
+            return Mono.empty();
+          }
         });
       })
       .transport(TcpServerTransport.create(7001))
@@ -122,69 +123,95 @@ class PrometheusController {
       .subscribe();
   }
 
-  @GetMapping(value = "/metrics", produces = "text/plain")
+  @GetMapping(value = "/metrics/proxy", produces = "text/plain")
+  public Mono<String> proxyMetrics() {
+    return Mono.just(meterRegistry.scrape());
+  }
+
+  @GetMapping(value = "/metrics/connected", produces = "text/plain")
   public Mono<String> prometheus() {
     return Flux
       .fromIterable(scrapableApps.get().entrySet())
-      .flatMap(appAndKeyPair -> {
-        KeyPair keyPair = appAndKeyPair.getValue();
-        RSocket rsocket = appAndKeyPair.getKey();
+      .flatMap(socketAndState -> {
+        ConnectionState connectionState = socketAndState.getValue();
+        RSocket rsocket = socketAndState.getKey();
         Timer.Sample sample = Timer.start();
         return rsocket
-          .requestResponse(DefaultPayload.create(
-            Base64.getEncoder().encodeToString(keyPair.getPublic().getEncoded())))
-          .map(payload -> {
-            try {
-              byte[] decrypted = decrypt(keyPair, ByteBufUtil.getBytes(payload.sliceMetadata()), ByteBufUtil.getBytes(payload.sliceData()));
-              ByteArrayInputStream bis = new ByteArrayInputStream(decrypted);
-              try (GZIPInputStream gis = new GZIPInputStream(bis);
-                   BufferedReader br = new BufferedReader(new InputStreamReader(gis, StandardCharsets.UTF_8))) {
-                StringBuilder sb = new StringBuilder();
-                String line;
-                while ((line = br.readLine()) != null) {
-                  sb.append(line);
-                }
-                String uncompressed = sb.toString();
-                scrapePayload.record(uncompressed.length());
-                return uncompressed;
-              }
-            } catch (IOException e) {
-              throw new UncheckedIOException(e);
-            } finally {
-              payload.release();
-              sample.stop(scrapeTimerSuccess);
-            }
-          })
+          .requestResponse(connectionState.createKeyPayload())
+          .map(payload -> connectionState.receiveScrapePayload(payload, sample))
           .onErrorResume(throwable -> {
             if (throwable instanceof ClosedChannelException) {
+              scrapeSocketsClosed.increment();
               scrapableApps.getAndUpdate(apps -> apps.minus(rsocket));
               sample.stop(scrapeTimerClosed);
-            } else {
-              sample.stop(scrapeTimerError);
+              return connectionState.getDyingPush();
             }
+            sample.stop(scrapeTimerError);
             return Mono.empty();
           });
       })
-      .concatWithValues(meterRegistry.scrape())
       .collect(Collectors.joining("\n"));
   }
 
-  private byte[] decrypt(KeyPair keyPair, byte[] encryptedKey, byte[] data) {
-    try {
-      PrivateKey privateKey = KeyFactory.getInstance("RSA")
-        .generatePrivate(new PKCS8EncodedKeySpec(keyPair.getPrivate().getEncoded()));
+  class ConnectionState {
+    private final KeyPair keyPair;
+    // the last metrics of a dying application instance
+    private String dyingPush;
 
-      Cipher cipher = Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding");
-      cipher.init(Cipher.PRIVATE_KEY, privateKey);
-      byte[] decryptedKey = cipher.doFinal(encryptedKey);
+    ConnectionState(KeyPair keyPair) {
+      this.keyPair = keyPair;
+    }
 
-      SecretKey originalKey = new SecretKeySpec(decryptedKey, 0, decryptedKey.length, "AES");
-      Cipher aesCipher = Cipher.getInstance("AES");
-      aesCipher.init(Cipher.DECRYPT_MODE, originalKey);
+    Mono<String> getDyingPush() {
+      return Mono.justOrEmpty(dyingPush);
+    }
 
-      return aesCipher.doFinal(data);
-    } catch (Throwable e) {
-      throw new IllegalStateException(e);
+    void setDyingPush(String dyingPush) {
+      this.dyingPush = dyingPush;
+    }
+
+    String receiveScrapePayload(Payload payload, Timer.Sample timing) {
+      try {
+        ByteBuf sliceMetadata = payload.sliceMetadata();
+        ByteBuf sliceData = payload.sliceData();
+        byte[] decrypted = decrypt(keyPair,
+          ByteBufUtil.getBytes(sliceMetadata, sliceMetadata.readerIndex(), sliceMetadata.readableBytes(), false),
+          ByteBufUtil.getBytes(sliceData, sliceData.readerIndex(), sliceData.readableBytes(), false));
+
+        String uncompressed = Snappy.uncompressString(decrypted);
+        scrapePayload.record(uncompressed.length());
+        return uncompressed;
+      } catch (IOException e) {
+        throw new UncheckedIOException(e);
+      } finally {
+        payload.release();
+        if (timing != null) {
+          timing.stop(scrapeTimerSuccess);
+        }
+      }
+    }
+
+    private byte[] decrypt(KeyPair keyPair, byte[] encryptedKey, byte[] data) {
+      try {
+        PrivateKey privateKey = KeyFactory.getInstance("RSA")
+          .generatePrivate(new PKCS8EncodedKeySpec(keyPair.getPrivate().getEncoded()));
+
+        Cipher cipher = Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding");
+        cipher.init(Cipher.PRIVATE_KEY, privateKey);
+        byte[] decryptedKey = cipher.doFinal(encryptedKey);
+
+        SecretKey originalKey = new SecretKeySpec(decryptedKey, 0, decryptedKey.length, "AES");
+        Cipher aesCipher = Cipher.getInstance("AES");
+        aesCipher.init(Cipher.DECRYPT_MODE, originalKey);
+
+        return aesCipher.doFinal(data);
+      } catch (Throwable e) {
+        throw new IllegalStateException(e);
+      }
+    }
+
+    Payload createKeyPayload() {
+      return DefaultPayload.create(keyPair.getPublic().getEncoded());
     }
   }
 }

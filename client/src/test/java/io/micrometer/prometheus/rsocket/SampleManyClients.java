@@ -21,6 +21,7 @@ import io.micrometer.core.instrument.Clock;
 import io.micrometer.prometheus.PrometheusConfig;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.prometheus.client.CollectorRegistry;
+import io.rsocket.transport.netty.client.TcpClientTransport;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
 
@@ -41,9 +42,9 @@ public class SampleManyClients {
         PrometheusMeterRegistry meterRegistry = new PrometheusMeterRegistry(PrometheusConfig.DEFAULT, new CollectorRegistry(), Clock.SYSTEM);
         meterRegistry.config().commonTags("client.id", Integer.toString(n));
 
-        PrometheusRSocketClient.connect(meterRegistry, "localhost", 7001)
-          .retryBackoff(Long.MAX_VALUE, Duration.ofSeconds(10), Duration.ofMinutes(10))
-          .subscribe();
+        new PrometheusRSocketClient(meterRegistry,
+          TcpClientTransport.create("localhost", 7001),
+          c -> c.retryBackoff(Long.MAX_VALUE, Duration.ofSeconds(10), Duration.ofMinutes(10)));
 
         return meterRegistry;
       })

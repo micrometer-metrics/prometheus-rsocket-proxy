@@ -1,20 +1,20 @@
 plugins {
-	id 'org.springframework.boot' version '2.2.0.M2'
-	id 'com.bmuschko.docker-spring-boot-application' version '4.7.0'
+  id 'org.springframework.boot' version '2.2.0.M2'
+  id 'com.bmuschko.docker-spring-boot-application' version '4.7.0'
 }
 
 apply plugin: 'io.spring.dependency-management'
 
 repositories {
-	mavenCentral()
-	maven { url 'https://repo.spring.io/snapshot' }
-	maven { url 'https://repo.spring.io/milestone' }
+  mavenCentral()
+  maven { url 'https://repo.spring.io/snapshot' }
+  maven { url 'https://repo.spring.io/milestone' }
 }
 
 dependencies {
-	implementation 'org.springframework.boot:spring-boot'
-	implementation project(':prometheus-rsocket-client')
+  implementation 'org.springframework.boot:spring-boot-autoconfigure'
+  implementation project(':prometheus-rsocket-client')
 
-	testImplementation 'org.springframework.boot:spring-boot-starter-test'
-	testImplementation 'io.projectreactor:reactor-test'
+  testImplementation 'org.springframework.boot:spring-boot-starter-test'
+  testImplementation 'io.projectreactor:reactor-test'
 }
