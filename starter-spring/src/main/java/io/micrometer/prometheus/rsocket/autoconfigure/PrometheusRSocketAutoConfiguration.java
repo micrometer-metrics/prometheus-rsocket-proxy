@@ -18,6 +18,8 @@ package io.micrometer.prometheus.rsocket.autoconfigure;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.micrometer.prometheus.rsocket.PrometheusRSocketClient;
 import io.rsocket.transport.netty.client.TcpClientTransport;
+import org.springframework.boot.actuate.autoconfigure.metrics.export.prometheus.PrometheusMetricsExportAutoConfiguration;
+import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -26,6 +28,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 @Configuration
+@AutoConfigureAfter(PrometheusMetricsExportAutoConfiguration.class)
 @ConditionalOnBean(PrometheusMeterRegistry.class)
 @ConditionalOnProperty(prefix = "management.metrics.export.prometheus.rsocket", name = "enabled", havingValue = "true", matchIfMissing = true)
 @EnableConfigurationProperties(PrometheusRSocketProperties.class)
@@ -35,7 +38,7 @@ public class PrometheusRSocketAutoConfiguration {
   @Bean(destroyMethod = "pushAndClose")
   PrometheusRSocketClient prometheusRSocketClient(PrometheusMeterRegistry meterRegistry, PrometheusRSocketProperties properties) {
     return new PrometheusRSocketClient(meterRegistry,
-      TcpClientTransport.create("localhost", 7001),
+      TcpClientTransport.create(properties.getHost(), properties.getPort()),
       c -> c.retryBackoff(properties.getMaxRetries(), properties.getFirstBackoff(), properties.getMaxBackoff()));
   }
 }

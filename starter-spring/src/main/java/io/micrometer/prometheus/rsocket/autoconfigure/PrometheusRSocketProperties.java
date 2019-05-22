@@ -22,6 +22,16 @@ import java.time.Duration;
 @ConfigurationProperties("management.metrics.export.prometheus.rsocket")
 public class PrometheusRSocketProperties {
   /**
+   * The host name of the proxy to connect to.
+   */
+  private String host;
+
+  /**
+   * The TCP port to make a connection on.
+   */
+  private int port = 7001;
+
+  /**
    * The maximum number of connection attempts to make.
    */
   private long maxRetries = Long.MAX_VALUE;
@@ -58,5 +68,21 @@ public class PrometheusRSocketProperties {
 
   public void setMaxBackoff(Duration maxBackoff) {
     this.maxBackoff = maxBackoff;
+  }
+
+  public String getHost() {
+    return host;
+  }
+
+  public void setHost(String host) {
+    this.host = host;
+  }
+
+  public int getPort() {
+    return port;
+  }
+
+  public void setPort(int port) {
+    this.port = port;
   }
 }
