@@ -83,6 +83,6 @@ client.pushAndClose();
 
 This installation includes Prometheus and Grafana as well.
 
-1. `kubectl apply -f scripts/kubernetes/proxy/` (`kubectl get svc -n prometheus-proxy` to see external IP)
+1. `kubectl apply -f scripts/kubernetes/proxy/` (`kubectl get svc -n monitoring-tools` to see external IP)
 1. `kubectl apply -f scripts/kubernetes/prometheus/`
 3. `kubectl apply -f scripts/kubernetes/grafana`

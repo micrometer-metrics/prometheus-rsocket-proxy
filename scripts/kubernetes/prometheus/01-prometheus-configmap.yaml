@@ -14,10 +14,13 @@ data:
 
     scrape_configs:
     - job_name: 'proxied-applications'
-      metrics_path: '/metrics/connected
+      metrics_path: '/metrics/connected'
       kubernetes_sd_configs:
         - role: pod
       relabel_configs:
+        - source_labels: [__meta_kubernetes_namespace]
+          action: keep
+          regex: monitoring-tools
         - source_labels: [__meta_kubernetes_pod_label_app]
           action: keep
           regex: prometheus-proxy
@@ -25,10 +28,13 @@ data:
           action: keep
           regex: 8080
     - job_name: 'proxies'
-      metrics_path: '/metrics/proxy
+      metrics_path: '/metrics/proxy'
       kubernetes_sd_configs:
         - role: pod
       relabel_configs:
+        - source_labels: [__meta_kubernetes_namespace]
+          action: keep
+          regex: monitoring-tools
         - source_labels: [__meta_kubernetes_pod_label_app]
           action: keep
           regex: prometheus-proxy
@@ -37,9 +43,6 @@ data:
           regex: 8080
         - action: labelmap
           regex: __meta_kubernetes_pod_label_(.+)
-        - source_labels: [__meta_kubernetes_namespace]
-          action: replace
-          target_label: kubernetes_namespace
         - source_labels: [__meta_kubernetes_pod_name]
           action: replace
           target_label: kubernetes_pod_name

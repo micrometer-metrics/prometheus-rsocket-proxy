@@ -8,7 +8,6 @@ kind: ServiceAccount
 metadata:
   name: monitoring-tools
   namespace: monitoring-tools
-automountServiceAccountToken: false
 ---
 apiVersion: rbac.authorization.k8s.io/v1beta1
 kind: ClusterRoleBinding
