@@ -34,6 +34,7 @@ if (hasProperty('dockerUser') && hasProperty('dockerPassword')) {
 
     springBootApplication {
       tag = "$dockerUser/prometheus-rsocket-proxy:${project.version}"
+      baseImage = 'openjdk:8'
     }
   }
 }

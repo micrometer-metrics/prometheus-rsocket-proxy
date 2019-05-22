@@ -86,3 +86,11 @@ This installation includes Prometheus and Grafana as well.
 1. `kubectl apply -f scripts/kubernetes/proxy/` (`kubectl get svc -n monitoring-tools` to see external IP)
 1. `kubectl apply -f scripts/kubernetes/prometheus/`
 3. `kubectl apply -f scripts/kubernetes/grafana`
+
+## Expected performance
+
+A 3-pod deployment easily handles 1,000 connected application instances each serving 1,000 distinct time series with <1vCPU and <3Gi RAM total on GKE.
+
+![Proxy Grafana Dashboard](doc/proxy-grafana.png)
+
+The scrape performance for each pod is <3s per interval.

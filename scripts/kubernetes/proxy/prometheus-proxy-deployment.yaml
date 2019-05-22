@@ -4,7 +4,7 @@ metadata:
   name: prometheus-proxy
   namespace: monitoring-tools
 spec:
-  replicas: 1
+  replicas: 3
   selector:
     matchLabels:
       app: prometheus-proxy
@@ -17,11 +17,19 @@ spec:
       containers:
         - name: prometheus-proxy
           image: micrometermetrics/prometheus-rsocket-proxy:latest
+          imagePullPolicy: Always
           ports:
             - name: scrape
               containerPort: 8080
             - name: rsocket
               containerPort: 7001
+          resources:
+            requests:
+              cpu: "2"
+              memory: "1000Mi"
+          args:
+            - -cpus
+            - "2"
       securityContext:
         fsGroup: 2000
         runAsNonRoot: true
