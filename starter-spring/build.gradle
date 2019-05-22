@@ -8,6 +8,12 @@ repositories {
   maven { url 'https://repo.spring.io/milestone' }
 }
 
+dependencyManagement {
+  imports {
+    mavenBom 'org.springframework.boot:spring-boot-dependencies:2.2.0.M3'
+  }
+}
+
 dependencies {
   implementation 'org.springframework.boot:spring-boot-autoconfigure'
   implementation project(':prometheus-rsocket-client')
@@ -16,7 +22,7 @@ dependencies {
 
   // to validate auto-completion on configuration properties
   annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
-  
+
   testImplementation 'org.springframework.boot:spring-boot-starter-test'
   testImplementation 'io.projectreactor:reactor-test'
 }
