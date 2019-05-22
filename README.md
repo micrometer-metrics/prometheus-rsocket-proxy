@@ -14,7 +14,7 @@ The proxy sends a public key to the application instance for it to encrypt the m
 
 ## Use in application code
 
-Include the dependency:
+Include the dependency (only in JCenter until 1.0 GA):
 
 ```
 implementation 'io.micrometer.publishing:prometheus-rsocket-client:VERSION'
@@ -43,7 +43,7 @@ client.close();
 
 ### Spring Boot auto-configuration
 
-Include the following dependency:
+Include the following dependency (only in JCenter until 1.0 GA):
 
 ```groovy
 implementation 'io.micrometer.publishing:prometheus-rsocket-spring:VERSION'
@@ -61,6 +61,8 @@ This will autoconfigure the Micrometer `PrometheusMeterRegistry`, a `PrometheusR
 
 ```yml
 management.metrics.export.prometheus.rsocket:
+  host: YOURPROXYHOSTHERE #required
+  port: 7001
   max-retries: 10000 # default is Long.MAX_VALUE
   first-backoff: 10s
   max-backoff: 10m
