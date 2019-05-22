@@ -12,6 +12,11 @@ dependencies {
   implementation 'org.springframework.boot:spring-boot-autoconfigure'
   implementation project(':prometheus-rsocket-client')
 
+  annotationProcessor 'org.springframework.boot:spring-boot-autoconfigure-processor'
+
+  // to validate auto-completion on configuration properties
+  annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+  
   testImplementation 'org.springframework.boot:spring-boot-starter-test'
   testImplementation 'io.projectreactor:reactor-test'
 }

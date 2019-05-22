@@ -19,18 +19,23 @@ import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.micrometer.prometheus.rsocket.PrometheusRSocketClient;
 import io.rsocket.transport.netty.client.TcpClientTransport;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import java.time.Duration;
-
 @Configuration
 @ConditionalOnBean(PrometheusMeterRegistry.class)
+@ConditionalOnProperty(prefix = "management.metrics.export.prometheus.rsocket", name = "enabled", havingValue = "true", matchIfMissing = true)
+@EnableConfigurationProperties(PrometheusRSocketProperties.class)
 public class PrometheusRSocketAutoConfiguration {
+
+  @ConditionalOnMissingBean
   @Bean(destroyMethod = "pushAndClose")
-  PrometheusRSocketClient prometheusRSocketClient(PrometheusMeterRegistry meterRegistry) {
+  PrometheusRSocketClient prometheusRSocketClient(PrometheusMeterRegistry meterRegistry, PrometheusRSocketProperties properties) {
     return new PrometheusRSocketClient(meterRegistry,
       TcpClientTransport.create("localhost", 7001),
-      c -> c.retryBackoff(Long.MAX_VALUE, Duration.ofSeconds(10), Duration.ofMinutes(10)));
+      c -> c.retryBackoff(properties.getMaxRetries(), properties.getFirstBackoff(), properties.getMaxBackoff()));
   }
 }
