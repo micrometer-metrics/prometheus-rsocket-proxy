@@ -1,9 +1,6 @@
 plugins {
-  id 'org.springframework.boot' version '2.2.0.M2'
-  id 'com.bmuschko.docker-spring-boot-application' version '4.7.0'
+  id 'io.spring.dependency-management' version '1.0.7.RELEASE'
 }
-
-apply plugin: 'io.spring.dependency-management'
 
 repositories {
   mavenCentral()
