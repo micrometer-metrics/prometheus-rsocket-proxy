@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus-proxy
+  namespace: monitoring-tools
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: prometheus-proxy
+  template:
+    metadata:
+      labels:
+        app: prometheus-proxy
+    spec:
+      serviceAccountName: monitoring-tools
+      containers:
+        - name: prometheus-proxy
+          image: micrometermetrics/prometheus-rsocket-proxy:latest
+          ports:
+            - name: scrape
+              containerPort: 8080
+            - name: rsocket
+              containerPort: 7001
+      securityContext:
+        fsGroup: 2000
+        runAsNonRoot: true
+        runAsUser: 1000

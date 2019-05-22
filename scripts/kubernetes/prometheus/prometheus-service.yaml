@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  namespace: monitoring-tools
+  labels:
+    name: prometheus
+spec:
+  selector:
+    app: prometheus
+  ports:
+    - name: prometheus
+      port: 9090
+      targetPort: prometheus
+  type: LoadBalancer

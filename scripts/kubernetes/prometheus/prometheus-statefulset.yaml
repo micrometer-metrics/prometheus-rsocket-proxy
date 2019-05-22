@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: prometheus
+  namespace: monitoring-tools
+spec:
+  replicas: 1
+  serviceName: prometheus
+  selector:
+    matchLabels:
+      app: prometheus
+  template:
+    metadata:
+      labels:
+        app: prometheus
+    spec:
+      serviceAccountName: monitoring-tools
+      securityContext:
+        fsGroup: 2000
+        runAsNonRoot: true
+        runAsUser: 1000
+      containers:
+        - name: prometheus
+          image: prom/prometheus:v2.9.2
+          args:
+            - "--config.file=/etc/prometheus/prometheus.yml"
+            - "--storage.tsdb.path=/prometheus/"
+            - "--web.enable-lifecycle"
+            - "--storage.tsdb.no-lockfile"
+          ports:
+            - name: prometheus
+              containerPort: 9090
+          volumeMounts:
+            - mountPath: /etc/prometheus/
+              name: prometheus-config-volume
+            - mountPath: /prometheus/
+              name: prometheus-data-volume
+      volumes:
+        - name: prometheus-config-volume
+          configMap:
+            defaultMode: 420
+            name: prometheus-server-conf
+  volumeClaimTemplates:
+    - metadata:
+        name: prometheus-data-volume
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 250Gi
+        storageClassName: faster
+
