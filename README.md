@@ -12,6 +12,8 @@ The approach works like this:
 
 The proxy sends a public key to the application instance for it to encrypt the metrics payload on each scrape.
 
+Clients automatically reconnect, so the bidirectional connection doesn't have to be durable over a long period of time for metrics to still get out. Because clients reconnect, the proxy cluster itself can be configured to horizontally autoscale or rebalance connections without fear of disrupting connected applications.
+
 ## Use in application code
 
 Include the dependency (only in JCenter until 1.0 GA):
