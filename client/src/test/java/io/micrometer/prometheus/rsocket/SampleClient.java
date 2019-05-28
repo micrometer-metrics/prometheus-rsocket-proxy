@@ -32,7 +32,7 @@ public class SampleClient {
 
     new PrometheusRSocketClient(meterRegistry,
       TcpClientTransport.create("localhost", 7001),
-      c -> c.retryBackoff(Long.MAX_VALUE, Duration.ofSeconds(10), Duration.ofMinutes(10)));
+      c -> c.retry(Long.MAX_VALUE));
 
     Random r = new Random();
 

@@ -99,6 +99,8 @@ class PrometheusController {
     RSocketFactory.receive()
       .frameDecoder(PayloadDecoder.ZERO_COPY)
       .acceptor((setup, sendingSocket) -> {
+        // respond with Mono.error(..) to
+
         ConnectionState connectionState = new ConnectionState(generator.generateKeyPair());
         scrapableApps.getAndUpdate(apps -> apps.plus(metricsInterceptor.apply(sendingSocket), connectionState));
 
@@ -106,6 +108,7 @@ class PrometheusController {
         sendingSocket.fireAndForget(connectionState.createKeyPayload())
           .subscribe();
 
+        // dispose this in order to disconnect the client
         return Mono.just(new AbstractRSocket() {
           @Override
           public Mono<Void> fireAndForget(Payload payload) {

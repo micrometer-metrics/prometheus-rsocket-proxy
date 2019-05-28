@@ -18,6 +18,7 @@ package io.micrometer.prometheus.rsocket;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.rsocket.*;
+import io.rsocket.transport.ClientTransport;
 import io.rsocket.transport.netty.client.TcpClientTransport;
 import io.rsocket.util.DefaultPayload;
 import org.xerial.snappy.Snappy;
@@ -62,7 +63,7 @@ public class PrometheusRSocketClient {
   private boolean pushOnDisconnect = false;
   private RSocket sendingSocket;
 
-  public PrometheusRSocketClient(PrometheusMeterRegistry registry, TcpClientTransport transport,
+  public PrometheusRSocketClient(PrometheusMeterRegistry registry, ClientTransport transport,
                                  UnaryOperator<Flux<Void>> customizeAndRetry) {
     this.registry = registry;
     Counter attempts = Counter.builder("prometheus.connection.attempts")
