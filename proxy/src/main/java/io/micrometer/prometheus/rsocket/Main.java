@@ -28,6 +28,7 @@ import io.rsocket.RSocketFactory;
 import io.rsocket.frame.decoder.PayloadDecoder;
 import io.rsocket.micrometer.MicrometerRSocketInterceptor;
 import io.rsocket.transport.netty.server.TcpServerTransport;
+import io.rsocket.transport.netty.server.WebsocketServerTransport;
 import io.rsocket.util.DefaultPayload;
 import org.pcollections.HashTreePMap;
 import org.pcollections.PMap;
@@ -98,32 +99,41 @@ class PrometheusController {
 
     RSocketFactory.receive()
       .frameDecoder(PayloadDecoder.ZERO_COPY)
-      .acceptor((setup, sendingSocket) -> {
-        // respond with Mono.error(..) to
-
-        ConnectionState connectionState = new ConnectionState(generator.generateKeyPair());
-        scrapableApps.getAndUpdate(apps -> apps.plus(metricsInterceptor.apply(sendingSocket), connectionState));
-
-        // for use by the client to push metrics as it's dying if this happens before the first scrape
-        sendingSocket.fireAndForget(connectionState.createKeyPayload())
-          .subscribe();
-
-        // dispose this in order to disconnect the client
-        return Mono.just(new AbstractRSocket() {
-          @Override
-          public Mono<Void> fireAndForget(Payload payload) {
-            try {
-              connectionState.setDyingPush(connectionState.receiveScrapePayload(payload, null));
-            } catch (Throwable t) {
-              t.printStackTrace();
-            }
-            return Mono.empty();
-          }
-        });
-      })
+      .acceptor((setup, sendingSocket) -> acceptRSocket(generator, sendingSocket))
       .transport(TcpServerTransport.create(7001))
       .start()
       .subscribe();
+
+    RSocketFactory.receive()
+      .frameDecoder(PayloadDecoder.ZERO_COPY)
+      .acceptor((setup, sendingSocket) -> acceptRSocket(generator, sendingSocket))
+      .transport(WebsocketServerTransport.create(8081))
+      .start()
+      .subscribe();
+  }
+
+  private Mono<RSocket> acceptRSocket(RSAKeyPairGenerator generator, RSocket sendingSocket) {
+    // respond with Mono.error(..) to
+
+    ConnectionState connectionState = new ConnectionState(generator.generateKeyPair());
+    scrapableApps.getAndUpdate(apps -> apps.plus(metricsInterceptor.apply(sendingSocket), connectionState));
+
+    // for use by the client to push metrics as it's dying if this happens before the first scrape
+    sendingSocket.fireAndForget(connectionState.createKeyPayload())
+      .subscribe();
+
+    // dispose this in order to disconnect the client
+    return Mono.just(new AbstractRSocket() {
+      @Override
+      public Mono<Void> fireAndForget(Payload payload) {
+        try {
+          connectionState.setDyingPush(connectionState.receiveScrapePayload(payload, null));
+        } catch (Throwable t) {
+          t.printStackTrace();
+        }
+        return Mono.empty();
+      }
+    });
   }
 
   @GetMapping(value = "/metrics/proxy", produces = "text/plain")

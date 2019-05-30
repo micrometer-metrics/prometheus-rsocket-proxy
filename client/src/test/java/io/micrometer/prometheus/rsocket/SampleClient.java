@@ -18,7 +18,7 @@ package io.micrometer.prometheus.rsocket;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.prometheus.PrometheusConfig;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
-import io.rsocket.transport.netty.client.TcpClientTransport;
+import io.rsocket.transport.netty.client.WebsocketClientTransport;
 import reactor.core.publisher.Flux;
 
 import java.lang.management.ManagementFactory;
@@ -31,7 +31,7 @@ public class SampleClient {
     meterRegistry.config().commonTags("process.id", ManagementFactory.getRuntimeMXBean().getName());
 
     new PrometheusRSocketClient(meterRegistry,
-      TcpClientTransport.create("localhost", 7001),
+      WebsocketClientTransport.create("localhost", 8081),
       c -> c.retry(Long.MAX_VALUE));
 
     Random r = new Random();
