@@ -18,7 +18,8 @@ data:
       kubernetes_sd_configs:
         - role: pod
           namespaces:
-            name: monitoring-tools
+            names:
+              - monitoring-tools
       relabel_configs:
         - source_labels: [__meta_kubernetes_pod_label_app]
           action: keep
@@ -31,7 +32,8 @@ data:
       kubernetes_sd_configs:
         - role: pod
           namespaces:
-            name: monitoring-tools
+            names:
+              - monitoring-tools
       relabel_configs:
         - source_labels: [__meta_kubernetes_pod_label_app]
           action: keep
