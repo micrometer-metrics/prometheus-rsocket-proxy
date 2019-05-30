@@ -17,10 +17,9 @@ data:
       metrics_path: '/metrics/connected'
       kubernetes_sd_configs:
         - role: pod
+          namespaces:
+            name: monitoring-tools
       relabel_configs:
-        - source_labels: [__meta_kubernetes_namespace]
-          action: keep
-          regex: monitoring-tools
         - source_labels: [__meta_kubernetes_pod_label_app]
           action: keep
           regex: prometheus-proxy
@@ -31,10 +30,9 @@ data:
       metrics_path: '/metrics/proxy'
       kubernetes_sd_configs:
         - role: pod
+          namespaces:
+            name: monitoring-tools
       relabel_configs:
-        - source_labels: [__meta_kubernetes_namespace]
-          action: keep
-          regex: monitoring-tools
         - source_labels: [__meta_kubernetes_pod_label_app]
           action: keep
           regex: prometheus-proxy
