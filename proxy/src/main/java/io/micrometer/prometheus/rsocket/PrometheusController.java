@@ -38,7 +38,6 @@ import org.springframework.web.bind.annotation.RestController;
 import org.xerial.snappy.Snappy;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import sun.security.rsa.RSAKeyPairGenerator;
 
 import javax.annotation.PostConstruct;
 import javax.crypto.Cipher;
@@ -47,9 +46,7 @@ import javax.crypto.spec.SecretKeySpec;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.channels.ClosedChannelException;
-import java.security.KeyFactory;
-import java.security.KeyPair;
-import java.security.PrivateKey;
+import java.security.*;
 import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
@@ -91,8 +88,8 @@ class PrometheusController {
   }
 
   @PostConstruct
-  public void connect() {
-    RSAKeyPairGenerator generator = new RSAKeyPairGenerator();
+  public void connect() throws NoSuchAlgorithmException {
+    KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
 
     RSocketFactory.receive()
       .frameDecoder(PayloadDecoder.ZERO_COPY)
@@ -109,7 +106,7 @@ class PrometheusController {
       .subscribe();
   }
 
-  private Mono<RSocket> acceptRSocket(RSAKeyPairGenerator generator, RSocket sendingSocket) {
+  private Mono<RSocket> acceptRSocket(KeyPairGenerator generator, RSocket sendingSocket) {
     // respond with Mono.error(..) to
 
     ConnectionState connectionState = new ConnectionState(generator.generateKeyPair());

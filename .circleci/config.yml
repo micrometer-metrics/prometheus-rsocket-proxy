@@ -5,7 +5,7 @@ executors:
   jdk-docker-executor:
     working_directory: ~/prometheus-rsocket-proxy
     docker:
-      - image: adoptopenjdk/openjdk8:alpine-slim
+      - image: adoptopenjdk/openjdk11:alpine-slim
 
 jobs:
   build:

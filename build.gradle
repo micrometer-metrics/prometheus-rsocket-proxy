@@ -32,6 +32,19 @@ subprojects {
   def check = tasks.findByName('check')
   if (check) project.rootProject.tasks.releaseCheck.dependsOn check
 
+  compileJava {
+    options.encoding = 'UTF-8'
+    if (JavaVersion.current().isJava9Compatible()) {
+      options.compilerArgs.addAll(['--release', '8'])
+    }
+  }
+
+  compileTestJava {
+    options.encoding = 'UTF-8'
+    sourceCompatibility = JavaVersion.current()
+    targetCompatibility = JavaVersion.current()
+  }
+
   license {
     ext.year = Calendar.getInstance().get(Calendar.YEAR)
     skipExistingHeaders = true
