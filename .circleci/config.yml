@@ -1,6 +1,5 @@
 version: 2.1
 orbs:
-  # necessary for at least restore_cache/save_cache because not using CircleCI convenience image
   build-tools: circleci/build-tools@2.6.3
 executors:
   jdk-docker-executor:
@@ -13,6 +12,7 @@ jobs:
     executor: jdk-docker-executor
     steps:
       - checkout
+      # necessary for at least restore_cache/save_cache because we're not using CircleCI convenience image
       - build-tools/install-ci-tools
 
       - restore_cache:
