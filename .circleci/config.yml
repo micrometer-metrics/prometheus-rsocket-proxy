@@ -1,4 +1,6 @@
 version: 2.1
+orbs:
+  build-tools: circleci/build-tools@2.6.3
 executors:
   jdk-docker-executor:
     working_directory: ~/prometheus-rsocket-proxy
@@ -10,6 +12,7 @@ jobs:
     executor: jdk-docker-executor
     steps:
       - checkout
+      - build-tools/install-ci-tools
 
       - restore_cache:
           key: gradle-dependencies-{{ checksum "build.gradle" }}
