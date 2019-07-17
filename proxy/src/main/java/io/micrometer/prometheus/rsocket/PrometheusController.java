@@ -32,8 +32,7 @@ import io.rsocket.transport.netty.server.WebsocketServerTransport;
 import io.rsocket.util.DefaultPayload;
 import org.pcollections.HashTreePMap;
 import org.pcollections.PMap;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.xerial.snappy.Snappy;
@@ -55,13 +54,11 @@ import java.security.spec.PKCS8EncodedKeySpec;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.stream.Collectors;
 
-@SpringBootApplication
-public class Main {
-  public static void main(String[] args) {
-    SpringApplication.run(Main.class, args);
-  }
-}
-
+/**
+ * A {@link Controller} for endpoints to be scraped by Prometheus.
+ *
+ * @author Jon Schneider
+ */
 @RestController
 class PrometheusController {
   private final PrometheusMeterRegistry meterRegistry;
