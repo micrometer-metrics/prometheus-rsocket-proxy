@@ -11,9 +11,9 @@ jobs:
   build:
     executor: jdk-docker-executor
     steps:
-      - checkout
       # necessary for at least restore_cache/save_cache because we're not using CircleCI convenience image
       - build-tools/install-ci-tools
+      - checkout
 
       - restore_cache:
           key: gradle-dependencies-{{ checksum "build.gradle" }}
@@ -47,6 +47,11 @@ jobs:
   deploy:
     executor: jdk-docker-executor
     steps:
+      - build-tools/install-ci-tools
+      - run:
+          name: install openssl
+          # command depends on operating system used
+          command: apk add openssl
       - checkout
       - restore_cache:
           key: gradle-dependencies-{{ checksum "build.gradle" }}
@@ -57,6 +62,11 @@ jobs:
   maven-central-sync:
     executor: jdk-docker-executor
     steps:
+      - build-tools/install-ci-tools
+      - run:
+          name: install openssl
+          # command depends on operating system used
+          command: apk add openssl
       - checkout
       - run:
           name: Decrypt properties
