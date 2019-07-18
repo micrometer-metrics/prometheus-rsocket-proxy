@@ -19,9 +19,10 @@ repositories {
 }
 
 dependencies {
-  api 'io.rsocket:rsocket-transport-netty:0.11.3'
+  api 'io.rsocket:rsocket-core:1.0.0-RC1'
   api 'io.micrometer:micrometer-registry-prometheus:latest.release'
   implementation 'org.xerial.snappy:snappy-java:latest.release'
 
   testImplementation 'ch.qos.logback:logback-classic:1.2.3'
+  testImplementation 'io.rsocket:rsocket-transport-netty:1.0.0-RC1'
 }
