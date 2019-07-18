@@ -1,5 +1,5 @@
 plugins {
-  id 'org.springframework.boot' version '2.2.0.M2'
+  id 'org.springframework.boot' version '2.2.0.M4'
   id 'com.bmuschko.docker-spring-boot-application' version '4.7.0'
 }
 
