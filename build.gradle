@@ -28,6 +28,12 @@ allprojects {
 
 subprojects {
   apply plugin: 'java'
+  apply plugin: 'checkstyle'
+
+  checkstyle {
+    toolVersion = '8.22'
+    configFile = rootProject.file('config/checkstyle/checkstyle.xml')
+  }
 
   def check = tasks.findByName('check')
   if (check) project.rootProject.tasks.releaseCheck.dependsOn check
