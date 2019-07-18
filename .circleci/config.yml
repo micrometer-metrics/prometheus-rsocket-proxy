@@ -70,7 +70,7 @@ jobs:
       - checkout
       - run:
           name: Decrypt properties
-          command: openssl aes-256-cbc -d -in gradle.properties.enc -out gradle.properties -k "$KEY" -md sha256
+          command: openssl enc -d -aes-256-cbc -md sha512 -pbkdf2 -iter 1000 -in gradle.properties.enc -out gradle.properties -pass "pass:$KEY"
       - deploy:
           name: Maven Central sync
           command: ./gradlew mavenCentralSync -Prelease.useLastTag=true -x bintrayPublish -x bintrayUpload -x bintrayCreateVersion -x bintrayCreatePackage
