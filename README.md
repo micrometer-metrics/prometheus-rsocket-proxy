@@ -1,3 +1,5 @@
+[![CircleCI](https://circleci.com/gh/micrometer-metrics/prometheus-rsocket-proxy.svg?style=svg)](https://circleci.com/gh/micrometer-metrics/prometheus-rsocket-proxy)
+
 # Prometheus RSocket Proxy
 
 This is a collection of resources to help you get application metrics to Prometheus when you cannot open ingress into your application while still preserving the pull model, using [RSocket](https://rsocket.io) bidirectional persistent RPC.
