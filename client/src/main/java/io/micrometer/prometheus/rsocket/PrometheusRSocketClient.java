@@ -30,7 +30,9 @@ import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import java.nio.ByteBuffer;
 import java.security.KeyFactory;
+import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
+import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicReference;
@@ -44,18 +46,18 @@ import java.util.function.UnaryOperator;
 public class PrometheusRSocketClient {
   private final PrometheusMeterRegistry registry;
   private final Disposable connection;
-  private AtomicReference<ByteBuffer> latestKey = new AtomicReference<>();
+  private AtomicReference<PublicKey> latestKey = new AtomicReference<>();
   private final AbstractRSocket rsocket = new AbstractRSocket() {
     @Override
     public Mono<Payload> requestResponse(Payload payload) {
-      ByteBuffer key = payload.getData();
+      PublicKey key = decodePublicKey(payload.getData());
       latestKey.set(key);
       return Mono.just(scrapePayload(key));
     }
 
     @Override
     public Mono<Void> fireAndForget(Payload payload) {
-      latestKey.set(payload.getData());
+      latestKey.set(decodePublicKey(payload.getData()));
       return Mono.empty();
     }
   };
@@ -80,7 +82,7 @@ public class PrometheusRSocketClient {
       .start()
       .doOnCancel(() -> {
         if (pushOnDisconnect) {
-          ByteBuffer key = latestKey.get();
+          PublicKey key = latestKey.get();
           if (key != null) {
             sendingSocket
               .fireAndForget(scrapePayload(key))
@@ -105,7 +107,7 @@ public class PrometheusRSocketClient {
     close();
   }
 
-  private Payload scrapePayload(ByteBuffer encodedKeyBuffer) {
+  private Payload scrapePayload(PublicKey publicKey) {
     try {
       KeyGenerator generator = KeyGenerator.getInstance("AES");
       generator.init(128);
@@ -115,13 +117,6 @@ public class PrometheusRSocketClient {
       aesCipher.init(Cipher.ENCRYPT_MODE, secKey);
       byte[] encryptedMetrics = aesCipher.doFinal(Snappy.compress(registry.scrape()));
 
-      byte[] encodedKey = new byte[encodedKeyBuffer.capacity()];
-      encodedKeyBuffer.get(encodedKey, 0, encodedKey.length);
-
-      X509EncodedKeySpec keySpec = new X509EncodedKeySpec(encodedKey);
-      KeyFactory keyFactory = KeyFactory.getInstance("RSA");
-      PublicKey publicKey = keyFactory.generatePublic(keySpec);
-
       Cipher cipher = Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding");
       cipher.init(Cipher.PUBLIC_KEY, publicKey);
       byte[] encryptedPublicKey = cipher.doFinal(secKey.getEncoded());
@@ -129,6 +124,19 @@ public class PrometheusRSocketClient {
       return DefaultPayload.create(encryptedMetrics, encryptedPublicKey);
     } catch (Throwable e) {
       throw new IllegalArgumentException(e);
+    }
+  }
+
+  private PublicKey decodePublicKey(ByteBuffer encodedKeyBuffer) {
+    byte[] encodedKey = new byte[encodedKeyBuffer.capacity()];
+    encodedKeyBuffer.get(encodedKey);
+
+    X509EncodedKeySpec keySpec = new X509EncodedKeySpec(encodedKey);
+    try {
+      KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+      return keyFactory.generatePublic(keySpec);
+    } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
+      throw new IllegalStateException(e);
     }
   }
 }

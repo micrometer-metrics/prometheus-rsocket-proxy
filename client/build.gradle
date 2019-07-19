@@ -24,5 +24,12 @@ dependencies {
   implementation 'org.xerial.snappy:snappy-java:latest.release'
 
   testImplementation 'ch.qos.logback:logback-classic:1.2.3'
+  testImplementation 'org.junit.jupiter:junit-jupiter:5.5.+'
   testImplementation 'io.rsocket:rsocket-transport-netty:1.0.0-RC1'
+  testImplementation 'io.rsocket:rsocket-transport-local:1.0.0-RC1'
+  testImplementation 'org.assertj:assertj-core:latest.release'
+}
+
+test {
+  useJUnitPlatform()
 }
