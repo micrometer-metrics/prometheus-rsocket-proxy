@@ -3,15 +3,6 @@ plugins {
   id 'io.spring.dependency-management' version '1.0.8.RELEASE'
 }
 
-apply plugin: 'io.spring.publishing'
-
-contacts {
-  'jschneider@pivotal.io' {
-    moniker 'Jon Schneider'
-    github 'jkschneider'
-  }
-}
-
 bintray.labels = ['prometheus', 'micrometer', 'metrics', 'rsocket']
 
 repositories {

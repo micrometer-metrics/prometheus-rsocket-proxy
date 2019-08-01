@@ -2,15 +2,6 @@ plugins {
   id 'java-library'
 }
 
-apply plugin: 'io.spring.publishing'
-
-contacts {
-  'jschneider@pivotal.io' {
-    moniker 'Jon Schneider'
-    github 'jkschneider'
-  }
-}
-
 bintray.labels = ['prometheus', 'micrometer', 'metrics', 'rsocket']
 
 repositories {

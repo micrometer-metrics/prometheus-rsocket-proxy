@@ -16,6 +16,14 @@ apply plugin: 'io.spring.release'
 
 allprojects {
   apply plugin: 'io.spring.license'
+  apply plugin: 'io.spring.publishing'
+
+  contacts {
+    'jschneider@pivotal.io' {
+      moniker 'Jon Schneider'
+      github 'jkschneider'
+    }
+  }
 
   afterEvaluate { project ->
     println "I'm building $project.name with version $project.version"
