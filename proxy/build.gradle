@@ -11,6 +11,15 @@ repositories {
   maven { url 'https://repo.spring.io/milestone' }
 }
 
+publishing {
+  publications {
+    nebula(MavenPublication) {
+      // ensure the Spring Boot jar gets created
+      artifact bootJar
+    }
+  }
+}
+
 dependencies {
   implementation 'org.springframework.boot:spring-boot-starter-actuator'
   implementation 'org.springframework.boot:spring-boot-starter-rsocket'
