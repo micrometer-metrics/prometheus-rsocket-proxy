@@ -58,6 +58,10 @@ jobs:
       - deploy:
           name: Deployment
           command: sh ./gradle/deploy.sh
+      - setup_remote_docker
+      - run:
+          name: Publish Docker image
+          command: ./gradlew dockerPushImage
 
   maven-central-sync:
     executor: jdk-docker-executor

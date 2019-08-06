@@ -38,7 +38,7 @@ if (hasProperty('dockerUser') && hasProperty('dockerPassword')) {
     registryCredentials {
       username = dockerUser
       password = dockerPassword
-      email = 'jschneider@pivotal.io'
+      email = 'tludwig@pivotal.io'
     }
 
     springBootApplication {
