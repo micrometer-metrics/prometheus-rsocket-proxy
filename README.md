@@ -21,13 +21,13 @@ Clients automatically reconnect, so the bidirectional connection doesn't have to
 Include the dependency (only in JCenter until 1.0 GA):
 
 ```
-implementation 'io.micrometer.publishing:prometheus-rsocket-client:VERSION'
+implementation 'io.micrometer.prometheus:prometheus-rsocket-client:VERSION'
 ```
 
 or
 
 ```
-<groupId>io.micrometer.publishing</groupId>
+<groupId>io.micrometer.prometheus</groupId>
 <artifactId>prometheus-rsocket-client</artifactId>
 <version>VERSION</version>
 ```
@@ -50,13 +50,13 @@ client.close();
 Include the following dependency (only in JCenter until 1.0 GA):
 
 ```groovy
-implementation 'io.micrometer.publishing:prometheus-rsocket-spring:VERSION'
+implementation 'io.micrometer.prometheus:prometheus-rsocket-spring:VERSION'
 ```
 
 or
 
 ```xml
-<groupId>io.micrometer.publishing</groupId>
+<groupId>io.micrometer.prometheus</groupId>
 <artifactId>prometheus-rsocket-spring</artifactId>
 <version>VERSION</version>
 ```
