@@ -10,7 +10,7 @@ The approach works like this:
 
 1. An application makes a TCP RSocket connection to an RSocket proxy or cluster of proxies (the connection is effectively delegated by the load balancer to some instance/pod in the proxy cluster). Once the RSocket connection is established, the distinction between "server" and "client" disappears, so the proxy is able to act as the requester when pulling metrics from each application instance.
 2. Prometheus is configured to scrape the `/metrics/connected` and `/metrics/proxy` endpoints of the proxy(ies) and not the application instances.
-3. When the proxy receives a scrape request from Prometheus, it pulls metrics from each RSocket connection using a [request/response](http://rsocket.io/docs/Protocol#stream-sequences-request-response) sequence. The results of each connection are concatenated into one response for presentation to Prometheus.
+3. When the proxy receives a scrape request from Prometheus, it pulls metrics from each RSocket connection using a [request/response](https://rsocket.io/docs/Protocol#stream-sequences-request-response) sequence. The results of each connection are concatenated into one response for presentation to Prometheus.
 
 The proxy sends a public key to the application instance for it to encrypt the metrics payload on each scrape.
 
@@ -26,7 +26,7 @@ implementation 'io.micrometer.prometheus:prometheus-rsocket-client:VERSION'
 
 or
 
-```
+```xml
 <groupId>io.micrometer.prometheus</groupId>
 <artifactId>prometheus-rsocket-client</artifactId>
 <version>VERSION</version>
@@ -74,7 +74,7 @@ management.metrics.export.prometheus.rsocket:
 
 ## Support for short-lived or serverless applications
 
-Use `pushAndClose()` on the `PrometheusRSocketClient` in a shutdown hook for short-lived and serverless applications. This performs a [fire-and-forget](http://rsocket.io/docs/Protocol#stream-sequences-fire-and-forget) push of metrics to the proxy, which will hold them until the next scrape by Prometheus. In this way, you do not need to set up [Pushgateway](https://github.com/prometheus/pushgateway). The same RSocket proxy serves the needs of both long-lived and short-lived applications.
+Use `pushAndClose()` on the `PrometheusRSocketClient` in a shutdown hook for short-lived and serverless applications. This performs a [fire-and-forget](https://rsocket.io/docs/Protocol#stream-sequences-fire-and-forget) push of metrics to the proxy, which will hold them until the next scrape by Prometheus. In this way, you do not need to set up [Pushgateway](https://github.com/prometheus/pushgateway). The same RSocket proxy serves the needs of both long-lived and short-lived applications.
 
 ```java
 PrometheusRSocketClient client = new PrometheusRSocketClient(meterRegistry,
