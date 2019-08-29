@@ -6,6 +6,7 @@ bintray.labels = ['prometheus', 'micrometer', 'metrics', 'rsocket']
 
 repositories {
   mavenCentral()
+  // Needed because rsocket imports the reactor-bom Dysprosium still in milestones
   maven { url 'https://repo.spring.io/milestone' }
 }
 
