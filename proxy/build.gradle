@@ -1,5 +1,5 @@
 plugins {
-  id 'org.springframework.boot' version '2.2.0.M5'
+  id 'org.springframework.boot' version '2.1.7.RELEASE'
   id 'com.bmuschko.docker-spring-boot-application' version '4.10.0'
 }
 
@@ -7,25 +7,28 @@ apply plugin: 'io.spring.dependency-management'
 
 repositories {
   mavenCentral()
+  // Needed because rsocket imports the reactor-bom Dysprosium still in milestones
   maven { url 'https://repo.spring.io/milestone' }
 }
 
 publishing {
   publications {
     nebula(MavenPublication) {
-      // ensure the Spring Boot jar gets created
-      artifact bootJar
+      artifacts {
+        // ensure the Spring Boot jar gets published rather than the plain jar
+        artifact bootJar
+      }
     }
   }
 }
 
 dependencies {
   implementation 'org.springframework.boot:spring-boot-starter-actuator'
-  implementation 'org.springframework.boot:spring-boot-starter-rsocket'
   implementation 'org.springframework.boot:spring-boot-starter-webflux'
   implementation 'org.pcollections:pcollections:latest.release'
   implementation 'io.micrometer:micrometer-registry-prometheus'
-  implementation 'io.rsocket:rsocket-micrometer'
+  implementation 'io.rsocket:rsocket-micrometer:1.0.0-RC2'
+  implementation 'io.rsocket:rsocket-transport-netty:1.0.0-RC2'
   implementation 'org.xerial.snappy:snappy-java:latest.release'
 
   testImplementation 'org.springframework.boot:spring-boot-starter-test'
