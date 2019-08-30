@@ -18,7 +18,7 @@ Clients automatically reconnect, so the bidirectional connection doesn't have to
 
 ## Use in application code
 
-Include the dependency (only in JCenter until 1.0 GA):
+Include the dependency:
 
 ```
 implementation 'io.micrometer.prometheus:prometheus-rsocket-client:VERSION'
@@ -47,7 +47,7 @@ client.close();
 
 ### Spring Boot auto-configuration
 
-Include the following dependency (only in JCenter until 1.0 GA):
+Include the following dependency:
 
 ```groovy
 implementation 'io.micrometer.prometheus:prometheus-rsocket-spring:VERSION'
