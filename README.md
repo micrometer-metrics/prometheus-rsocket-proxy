@@ -1,4 +1,5 @@
 [![CircleCI](https://circleci.com/gh/micrometer-metrics/prometheus-rsocket-proxy.svg?style=svg)](https://circleci.com/gh/micrometer-metrics/prometheus-rsocket-proxy)
+[![Maven Central](https://img.shields.io/maven-central/v/io.micrometer.prometheus/prometheus-rsocket-proxy.svg)](https://mvnrepository.com/artifact/io.micrometer.prometheus/prometheus-rsocket-proxy)
 
 # Prometheus RSocket Proxy
 
