@@ -19,6 +19,7 @@ elif [ $CIRCLE_TAG ]; then
     ;;
   *)
     ./gradlew -Prelease.disableGitChecks=true -Prelease.useLastTag=true final dockerPushImage $SWITCHES -x release -x artifactoryPublish
+    ./gradlew -Doverride.docker.springBootApplication.tag=micrometermetrics/prometheus-rsocket-proxy:latest dockerPushImage
     ;;
   esac
 else
