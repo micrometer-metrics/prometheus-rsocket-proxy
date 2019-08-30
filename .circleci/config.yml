@@ -55,13 +55,10 @@ jobs:
       - checkout
       - restore_cache:
           key: gradle-dependencies-{{ checksum "build.gradle" }}
+      - setup_remote_docker
       - deploy:
           name: Deployment
           command: sh ./gradle/deploy.sh
-      - setup_remote_docker
-      - run:
-          name: Publish Docker image
-          command: ./gradlew dockerPushImage
 
   maven-central-sync:
     executor: jdk-docker-executor
