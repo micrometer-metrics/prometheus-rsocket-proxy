@@ -21,7 +21,7 @@ dependencies {
   api 'io.micrometer:micrometer-registry-prometheus'
   implementation 'org.springframework.boot:spring-boot-actuator-autoconfigure'
   implementation project(':prometheus-rsocket-client')
-  implementation 'io.rsocket:rsocket-transport-netty:1.0.0-RC2'
+  implementation 'io.rsocket:rsocket-transport-netty:1.0.0-RC3'
 
   annotationProcessor 'org.springframework.boot:spring-boot-autoconfigure-processor'
 
