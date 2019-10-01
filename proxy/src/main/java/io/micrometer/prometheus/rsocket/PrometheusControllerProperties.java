@@ -20,7 +20,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 /**
  * @author Christian Tzolov
  */
-@ConfigurationProperties("prometheus.proxy")
+@ConfigurationProperties("micrometer.prometheus-proxy")
 public class PrometheusControllerProperties {
 
   /**
