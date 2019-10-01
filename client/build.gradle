@@ -2,8 +2,6 @@ plugins {
   id 'java-library'
 }
 
-bintray.labels = ['prometheus', 'micrometer', 'metrics', 'rsocket']
-
 repositories {
   mavenCentral()
 }
