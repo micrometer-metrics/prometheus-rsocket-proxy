@@ -6,19 +6,17 @@ bintray.labels = ['prometheus', 'micrometer', 'metrics', 'rsocket']
 
 repositories {
   mavenCentral()
-  // Needed because rsocket imports the reactor-bom Dysprosium still in milestones
-  maven { url 'https://repo.spring.io/milestone' }
 }
 
 dependencies {
-  api 'io.rsocket:rsocket-core:1.0.0-RC3'
+  api 'io.rsocket:rsocket-core:1.0.0-RC5'
   api 'io.micrometer:micrometer-registry-prometheus:latest.release'
   implementation 'org.xerial.snappy:snappy-java:latest.release'
 
   testImplementation 'ch.qos.logback:logback-classic:1.2.3'
   testImplementation 'org.junit.jupiter:junit-jupiter:5.5.+'
-  testImplementation 'io.rsocket:rsocket-transport-netty:1.0.0-RC3'
-  testImplementation 'io.rsocket:rsocket-transport-local:1.0.0-RC3'
+  testImplementation 'io.rsocket:rsocket-transport-netty:1.0.0-RC5'
+  testImplementation 'io.rsocket:rsocket-transport-local:1.0.0-RC5'
   testImplementation 'org.assertj:assertj-core:latest.release'
 }
 

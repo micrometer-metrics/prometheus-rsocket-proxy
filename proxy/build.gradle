@@ -8,8 +8,6 @@ apply plugin: 'io.spring.dependency-management'
 
 repositories {
   mavenCentral()
-  // Needed because rsocket imports the reactor-bom Dysprosium still in milestones
-  maven { url 'https://repo.spring.io/milestone' }
 }
 
 publishing {
@@ -28,8 +26,8 @@ dependencies {
   implementation 'org.springframework.boot:spring-boot-starter-webflux'
   implementation 'org.pcollections:pcollections:latest.release'
   implementation 'io.micrometer:micrometer-registry-prometheus'
-  implementation 'io.rsocket:rsocket-micrometer:1.0.0-RC3'
-  implementation 'io.rsocket:rsocket-transport-netty:1.0.0-RC3'
+  implementation 'io.rsocket:rsocket-micrometer:1.0.0-RC5'
+  implementation 'io.rsocket:rsocket-transport-netty:1.0.0-RC5'
   implementation 'org.xerial.snappy:snappy-java:latest.release'
   annotationProcessor "org.springframework.boot:spring-boot-configuration-processor"
 
