@@ -15,10 +15,12 @@ elif [ $CIRCLE_TAG ]; then
   openssl enc -d -aes-256-cbc -md sha512 -pbkdf2 -iter 1000 -in gradle.properties.enc -out gradle.properties -pass "pass:$KEY"
   case "$CIRCLE_TAG" in
   *-rc\.*)
-    ./gradlew -Prelease.disableGitChecks=true -Prelease.useLastTag=true candidate dockerPushImage $SWITCHES -x release
+    ./gradlew -Prelease.disableGitChecks=true -Prelease.useLastTag=true candidate bintrayUpload $SWITCHES -x release -x bintrayPublish
+    ./gradlew -Prelease.disableGitChecks=true -Prelease.useLastTag=true :prometheus-rsocket-client:bintrayPublish dockerPushImage $SWITCHES -x bintrayUpload
     ;;
   *)
-    ./gradlew -Prelease.disableGitChecks=true -Prelease.useLastTag=true final dockerPushImage $SWITCHES -x release -x artifactoryPublish
+    ./gradlew -Prelease.disableGitChecks=true -Prelease.useLastTag=true final bintrayUpload $SWITCHES -x release -x artifactoryPublish -x bintrayPublish
+    ./gradlew -Prelease.disableGitChecks=true -Prelease.useLastTag=true :prometheus-rsocket-client:bintrayPublish dockerPushImage $SWITCHES -x bintrayUpload
     ./gradlew -Doverride.docker.springBootApplication.tag=micrometermetrics/prometheus-rsocket-proxy:latest dockerPushImage
     ;;
   esac

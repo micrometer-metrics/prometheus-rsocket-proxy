@@ -25,6 +25,11 @@ allprojects {
     }
   }
 
+  if (project.extensions.findByName('bintray')) {
+    bintray.labels = ['micrometer', 'metrics', 'prometheus', 'rsocket']
+    bintray.packageName = 'prometheus-rsocket-proxy'
+  }
+
   afterEvaluate { project ->
     println "I'm building $project.name with version $project.version"
   }
