@@ -15,14 +15,37 @@
  */
 package io.micrometer.prometheus.rsocket;
 
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.context.properties.ConfigurationProperties;
 
-@SpringBootApplication
-@EnableConfigurationProperties(PrometheusControllerProperties.class)
-public class PrometheusRSocketProxyMain {
-  public static void main(String[] args) {
-    SpringApplication.run(PrometheusRSocketProxyMain.class, args);
+/**
+ * @author Christian Tzolov
+ */
+@ConfigurationProperties("micrometer.prometheus-proxy")
+public class PrometheusControllerProperties {
+
+  /**
+   * Proxy accept TCP port.
+   */
+  private int tcpPort = 7001;
+
+  /**
+   * Proxy accept Websocket port.
+   */
+  private int websocketPort = 8081;
+
+  public int getTcpPort() {
+    return tcpPort;
+  }
+
+  public void setTcpPort(int tcpPort) {
+    this.tcpPort = tcpPort;
+  }
+
+  public int getWebsocketPort() {
+    return websocketPort;
+  }
+
+  public void setWebsocketPort(int websocketPort) {
+    this.websocketPort = websocketPort;
   }
 }

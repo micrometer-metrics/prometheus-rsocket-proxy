@@ -15,6 +15,23 @@
  */
 package io.micrometer.prometheus.rsocket;
 
+import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.channels.ClosedChannelException;
+import java.security.KeyFactory;
+import java.security.KeyPair;
+import java.security.KeyPairGenerator;
+import java.security.NoSuchAlgorithmException;
+import java.security.PrivateKey;
+import java.security.spec.PKCS8EncodedKeySpec;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Collectors;
+
+import javax.annotation.PostConstruct;
+import javax.crypto.Cipher;
+import javax.crypto.SecretKey;
+import javax.crypto.spec.SecretKeySpec;
+
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.Timer;
@@ -32,29 +49,19 @@ import io.rsocket.transport.netty.server.WebsocketServerTransport;
 import io.rsocket.util.DefaultPayload;
 import org.pcollections.HashTreePMap;
 import org.pcollections.PMap;
-import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RestController;
 import org.xerial.snappy.Snappy;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import javax.annotation.PostConstruct;
-import javax.crypto.Cipher;
-import javax.crypto.SecretKey;
-import javax.crypto.spec.SecretKeySpec;
-import java.io.IOException;
-import java.io.UncheckedIOException;
-import java.nio.channels.ClosedChannelException;
-import java.security.*;
-import java.security.spec.PKCS8EncodedKeySpec;
-import java.util.concurrent.atomic.AtomicReference;
-import java.util.stream.Collectors;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 /**
  * A {@link Controller} for endpoints to be scraped by Prometheus.
  *
  * @author Jon Schneider
+ * @author Christian Tzolov
  */
 @RestController
 class PrometheusController {
@@ -65,11 +72,13 @@ class PrometheusController {
   private final Timer scrapeTimerError;
   private final DistributionSummary scrapePayload;
   private final MicrometerRSocketInterceptor metricsInterceptor;
+  private PrometheusControllerProperties properties;
   private AtomicReference<PMap<RSocket, ConnectionState>> scrapableApps = new AtomicReference<>(HashTreePMap.empty());
 
-  PrometheusController(PrometheusMeterRegistry meterRegistry) {
+  PrometheusController(PrometheusMeterRegistry meterRegistry, PrometheusControllerProperties properties) {
     this.meterRegistry = meterRegistry;
     this.metricsInterceptor = new MicrometerRSocketInterceptor(meterRegistry);
+    this.properties = properties;
     meterRegistry.gauge("prometheus.proxy.scrape.active.connections", scrapableApps, apps -> apps.get().size());
 
     this.scrapeTimerSuccess = Timer.builder("prometheus.proxy.scrape")
@@ -94,14 +103,14 @@ class PrometheusController {
     RSocketFactory.receive()
       .frameDecoder(PayloadDecoder.ZERO_COPY)
       .acceptor((setup, sendingSocket) -> acceptRSocket(generator, sendingSocket))
-      .transport(TcpServerTransport.create(7001))
+      .transport(TcpServerTransport.create(this.properties.getTcpPort()))
       .start()
       .subscribe();
 
     RSocketFactory.receive()
       .frameDecoder(PayloadDecoder.ZERO_COPY)
       .acceptor((setup, sendingSocket) -> acceptRSocket(generator, sendingSocket))
-      .transport(WebsocketServerTransport.create(8081))
+      .transport(WebsocketServerTransport.create(this.properties.getWebsocketPort()))
       .start()
       .subscribe();
   }
