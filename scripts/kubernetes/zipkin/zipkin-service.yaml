@@ -10,6 +10,6 @@ spec:
     app: zipkin
   ports:
     - name: zipkin
-      port: 80
-      targetPort: 3000
+      port: 9411
+      targetPort: 9411
   type: LoadBalancer
