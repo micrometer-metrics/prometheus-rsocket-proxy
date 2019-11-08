@@ -1,0 +1,40 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: zipkin
+  namespace: monitoring-tools
+spec:
+  replicas: 1
+  serviceName: zipkin
+  selector:
+    matchLabels:
+      app: zipkin
+  template:
+    metadata:
+      labels:
+        app: zipkin
+    spec:
+      serviceAccountName: monitoring-tools
+      securityContext:
+        runAsUser: 472
+        fsGroup: 472
+      containers:
+        - name: zipkin
+          image: openzipkin/zipkin:latest
+          ports:
+            - containerPort: 9411
+              protocol: TCP
+          volumeMounts:
+            - mountPath: /var/lib/zipkin
+              name: zipkin-volume
+              readOnly: false
+  volumeClaimTemplates:
+    - metadata:
+        name: zipkin-volume
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 128Gi
+        storageClassName: standard
