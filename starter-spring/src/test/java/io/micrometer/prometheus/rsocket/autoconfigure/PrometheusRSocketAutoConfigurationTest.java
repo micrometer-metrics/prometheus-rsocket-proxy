@@ -64,8 +64,7 @@ public class PrometheusRSocketAutoConfigurationTest {
     final CountDownLatch latch = new CountDownLatch(1);
     this.startServer(TcpServerTransport.create(port), latch)
         .block();
-    this.contextRunner.withPropertyValues("management.metrics.export.prometheus.rsocket.host=localhost",
-        "management.metrics.export.prometheus.rsocket.port=" + port,
+    this.contextRunner.withPropertyValues("management.metrics.export.prometheus.rsocket.port=" + port,
         "management.metrics.export.prometheus.rsocket.transport=tcp")
         .run(context -> {
           latch.await(5, TimeUnit.SECONDS);
@@ -79,8 +78,7 @@ public class PrometheusRSocketAutoConfigurationTest {
     final CountDownLatch latch = new CountDownLatch(1);
     this.startServer(WebsocketServerTransport.create(port), latch)
         .block();
-    this.contextRunner.withPropertyValues("management.metrics.export.prometheus.rsocket.host=localhost",
-        "management.metrics.export.prometheus.rsocket.port=" + port,
+    this.contextRunner.withPropertyValues("management.metrics.export.prometheus.rsocket.port=" + port,
         "management.metrics.export.prometheus.rsocket.transport=websocket")
         .run(context -> {
           latch.await(5, TimeUnit.SECONDS);

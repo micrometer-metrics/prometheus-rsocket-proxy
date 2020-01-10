@@ -31,7 +31,7 @@ public class PrometheusRSocketProperties {
   /**
    * The host name of the proxy to connect to.
    */
-  private String host;
+  private String host = "localhost";
 
   /**
    * The port to make a connection on.
