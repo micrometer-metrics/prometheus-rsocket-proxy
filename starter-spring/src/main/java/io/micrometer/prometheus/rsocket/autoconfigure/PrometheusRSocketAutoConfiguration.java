@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.micrometer.prometheus.rsocket.autoconfigure;
 
 import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.micrometer.prometheus.rsocket.PrometheusRSocketClient;
-import io.rsocket.transport.netty.client.TcpClientTransport;
 import org.springframework.boot.actuate.autoconfigure.metrics.export.prometheus.PrometheusMetricsExportAutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
@@ -37,8 +37,7 @@ public class PrometheusRSocketAutoConfiguration {
   @ConditionalOnMissingBean
   @Bean(destroyMethod = "pushAndClose")
   PrometheusRSocketClient prometheusRSocketClient(PrometheusMeterRegistry meterRegistry, PrometheusRSocketProperties properties) {
-    return new PrometheusRSocketClient(meterRegistry,
-      TcpClientTransport.create(properties.getHost(), properties.getPort()),
+    return new PrometheusRSocketClient(meterRegistry, properties.createClientTransport(),
       c -> c.retryBackoff(properties.getMaxRetries(), properties.getFirstBackoff(), properties.getMaxBackoff()));
   }
 }

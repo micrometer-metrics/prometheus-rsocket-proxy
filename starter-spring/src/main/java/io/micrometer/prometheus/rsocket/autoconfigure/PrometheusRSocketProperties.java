@@ -13,21 +13,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package io.micrometer.prometheus.rsocket.autoconfigure;
 
+import io.rsocket.transport.ClientTransport;
+import io.rsocket.transport.netty.client.TcpClientTransport;
+import io.rsocket.transport.netty.client.WebsocketClientTransport;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import reactor.netty.http.client.HttpClient;
+import reactor.netty.tcp.TcpClient;
 
 import java.time.Duration;
 
 @ConfigurationProperties("management.metrics.export.prometheus.rsocket")
 public class PrometheusRSocketProperties {
+
   /**
    * The host name of the proxy to connect to.
    */
   private String host;
 
   /**
-   * The TCP port to make a connection on.
+   * The port to make a connection on.
    */
   private int port = 7001;
 
@@ -45,6 +52,16 @@ public class PrometheusRSocketProperties {
    * The maximum connection attempt delay to apply despite exponential growth.
    */
   private Duration maxBackoff = Duration.ofMinutes(10);
+
+  /**
+   * RSocket transport protocol.
+   */
+  private Transport transport = Transport.TCP;
+
+  /**
+   * Whether to use a secured protocol.
+   */
+  private boolean secure = false;
 
   public long getMaxRetries() {
     return maxRetries;
@@ -84,5 +101,54 @@ public class PrometheusRSocketProperties {
 
   public void setPort(int port) {
     this.port = port;
+  }
+
+  public Transport getTransport() {
+    return transport;
+  }
+
+  public void setTransport(Transport transport) {
+    this.transport = transport;
+  }
+
+  public void setSecure(boolean secure) {
+    this.secure = secure;
+  }
+
+  public boolean isSecure() {
+    return secure;
+  }
+
+  ClientTransport createClientTransport() {
+    final TcpClient tcpClient = TcpClient.create().host(this.host).port(this.port);
+    return this.transport.create(this.secure ? tcpClient.secure() : tcpClient);
+  }
+
+  /**
+   * Choice of transport protocol for the RSocket server.
+   */
+  enum Transport {
+
+    /**
+     * TCP transport protocol.
+     */
+    TCP {
+      @Override
+      ClientTransport create(TcpClient tcpClient) {
+        return TcpClientTransport.create(tcpClient);
+      }
+    },
+
+    /**
+     * WebSocket transport protocol.
+     */
+    WEBSOCKET {
+      @Override
+      ClientTransport create(TcpClient tcpClient) {
+        return WebsocketClientTransport.create(HttpClient.from(tcpClient), "/");
+      }
+    };
+
+    abstract ClientTransport create(TcpClient tcpClient);
   }
 }
