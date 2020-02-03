@@ -1,6 +1,6 @@
 plugins {
   id 'java-library'
-  id 'io.spring.dependency-management' version '1.0.8.RELEASE'
+  id 'io.spring.dependency-management' version '1.0.9.RELEASE'
 }
 
 repositories {
@@ -11,7 +11,7 @@ repositories {
 
 dependencyManagement {
   imports {
-    mavenBom 'org.springframework.boot:spring-boot-dependencies:2.1.8.RELEASE'
+    mavenBom 'org.springframework.boot:spring-boot-dependencies:2.2.4.RELEASE'
   }
 }
 
@@ -19,7 +19,7 @@ dependencies {
   api 'io.micrometer:micrometer-registry-prometheus'
   implementation 'org.springframework.boot:spring-boot-actuator-autoconfigure'
   implementation project(':prometheus-rsocket-client')
-  implementation 'io.rsocket:rsocket-transport-netty:1.0.0-RC5'
+  implementation 'io.rsocket:rsocket-transport-netty'
 
   annotationProcessor 'org.springframework.boot:spring-boot-autoconfigure-processor'
 
