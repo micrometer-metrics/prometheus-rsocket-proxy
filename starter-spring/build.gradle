@@ -30,3 +30,7 @@ dependencies {
   testImplementation 'io.projectreactor:reactor-test'
   testImplementation 'io.micrometer:micrometer-registry-prometheus'
 }
+
+test {
+  useJUnitPlatform()
+}

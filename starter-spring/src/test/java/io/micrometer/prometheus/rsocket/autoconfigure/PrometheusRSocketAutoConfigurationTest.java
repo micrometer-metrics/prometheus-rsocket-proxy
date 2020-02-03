@@ -23,7 +23,7 @@ import io.rsocket.transport.ServerTransport;
 import io.rsocket.transport.netty.server.CloseableChannel;
 import io.rsocket.transport.netty.server.TcpServerTransport;
 import io.rsocket.transport.netty.server.WebsocketServerTransport;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import org.springframework.boot.actuate.autoconfigure.metrics.MetricsAutoConfiguration;
 import org.springframework.boot.actuate.autoconfigure.metrics.export.prometheus.PrometheusMetricsExportAutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
@@ -36,7 +36,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-public class PrometheusRSocketAutoConfigurationTest {
+class PrometheusRSocketAutoConfigurationTest {
 
   private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
       .withConfiguration(AutoConfigurations.of(MetricsAutoConfiguration.class, PrometheusMetricsExportAutoConfiguration.class, PrometheusRSocketAutoConfiguration.class));
@@ -59,7 +59,7 @@ public class PrometheusRSocketAutoConfigurationTest {
   }
 
   @Test
-  public void prometheusRSocketClientTcp() {
+  void prometheusRSocketClientTcp() {
     int port = SocketUtils.findAvailableTcpPort();
     final CountDownLatch latch = new CountDownLatch(1);
     this.startServer(TcpServerTransport.create(port), latch)
@@ -73,7 +73,7 @@ public class PrometheusRSocketAutoConfigurationTest {
   }
 
   @Test
-  public void prometheusRSocketClientWebsocket() {
+  void prometheusRSocketClientWebsocket() {
     int port = SocketUtils.findAvailableTcpPort();
     final CountDownLatch latch = new CountDownLatch(1);
     this.startServer(WebsocketServerTransport.create(port), latch)
