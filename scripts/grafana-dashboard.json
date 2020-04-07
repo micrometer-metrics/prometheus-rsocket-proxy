@@ -178,17 +178,17 @@
       "steppedLine": true,
       "targets": [
         {
-          "expr": "rate(rsocket_request_response_seconds_count{signal_type=\"ON_COMPLETE\"}[1m])",
+          "expr": "sum(rate(rsocket_request_response_seconds_count{signal_type=\"ON_COMPLETE\"}[1m]))",
           "legendFormat": "complete",
           "refId": "B"
         },
         {
-          "expr": "rate(rsocket_request_response_seconds_count{signal_type=\"CANCEL\"}[1m])",
+          "expr": "sum(rate(rsocket_request_response_seconds_count{signal_type=\"CANCEL\"}[1m]))",
           "legendFormat": "cancel",
           "refId": "C"
         },
         {
-          "expr": "rate(rsocket_request_response_seconds_count{signal_type=\"ON_ERROR\"}[1m])",
+          "expr": "sum(rate(rsocket_request_response_seconds_count{signal_type=\"ON_ERROR\"}[1m]))",
           "legendFormat": "error",
           "refId": "A"
         }
@@ -379,17 +379,17 @@
       "steppedLine": true,
       "targets": [
         {
-          "expr": "rate(prometheus_proxy_scrape_seconds_count{outcome=\"success\"}[1m])",
+          "expr": "sum(rate(prometheus_proxy_scrape_seconds_count{outcome=\"success\"}[1m]))",
           "legendFormat": "success",
           "refId": "A"
         },
         {
-          "expr": "rate(prometheus_proxy_scrape_seconds_count{outcome=\"closed\"}[1m])",
+          "expr": "sum(rate(prometheus_proxy_scrape_seconds_count{outcome=\"closed\"}[1m]))",
           "legendFormat": "closed",
           "refId": "B"
         },
         {
-          "expr": "rate(prometheus_proxy_scrape_seconds_count{outcome=\"error\"}[1m])",
+          "expr": "sum(rate(prometheus_proxy_scrape_seconds_count{outcome=\"error\"}[1m]))",
           "legendFormat": "error",
           "refId": "C"
         }
@@ -444,7 +444,7 @@
     "list": []
   },
   "time": {
-    "from": "now-3h",
+    "from": "now-15m",
     "to": "now"
   },
   "timepicker": {
@@ -464,5 +464,5 @@
   "timezone": "",
   "title": "Prometheus Proxy",
   "uid": "5sancpjZk",
-  "version": 12
+  "version": 13
 }

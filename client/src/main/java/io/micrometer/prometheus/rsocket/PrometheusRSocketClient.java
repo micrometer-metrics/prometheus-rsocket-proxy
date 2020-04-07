@@ -47,26 +47,38 @@ public class PrometheusRSocketClient {
   private final PrometheusMeterRegistry registry;
   private final Disposable connection;
   private AtomicReference<PublicKey> latestKey = new AtomicReference<>();
+
   private final AbstractRSocket rsocket = new AbstractRSocket() {
     @Override
     public Mono<Payload> requestResponse(Payload payload) {
       PublicKey key = decodePublicKey(payload.getData());
       latestKey.set(key);
+      onKeyExchanged.run();
       return Mono.just(scrapePayload(key));
     }
 
     @Override
     public Mono<Void> fireAndForget(Payload payload) {
       latestKey.set(decodePublicKey(payload.getData()));
+      onKeyExchanged.run();
       return Mono.empty();
     }
   };
+
   private boolean pushOnDisconnect = false;
   private RSocket sendingSocket;
+  private Runnable onKeyExchanged;
 
   public PrometheusRSocketClient(PrometheusMeterRegistry registry, ClientTransport transport,
                                  UnaryOperator<Flux<Void>> customizeAndRetry) {
+    this(registry, transport, customizeAndRetry, () -> {});
+  }
+
+  public PrometheusRSocketClient(PrometheusMeterRegistry registry, ClientTransport transport,
+                                 UnaryOperator<Flux<Void>> customizeAndRetry,
+                                 Runnable onKeyExchanged) {
     this.registry = registry;
+    this.onKeyExchanged = onKeyExchanged;
     Counter attempts = Counter.builder("prometheus.connection.attempts")
       .description("Attempts at making an outbound RSocket connection to the Prometheus proxy")
       .baseUnit("attempts")

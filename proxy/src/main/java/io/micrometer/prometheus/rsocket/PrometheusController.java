@@ -66,7 +66,11 @@ class PrometheusController {
   private final DistributionSummary scrapePayload;
   private final MicrometerRSocketInterceptor metricsInterceptor;
   private PrometheusControllerProperties properties;
+
   private Map<RSocket, ConnectionState> scrapableApps = new ConcurrentHashMap<>();
+
+  // keyed by the RSocket that listens for dying pushes, the value is the RSocket used for request/response scrapes.
+//  private Map<RSocket, RSocket> scrapableAppsByDyingPushListener = new ConcurrentHashMap<>();
 
   PrometheusController(PrometheusMeterRegistry meterRegistry, PrometheusControllerProperties properties) {
     this.meterRegistry = meterRegistry;
@@ -75,15 +79,15 @@ class PrometheusController {
     meterRegistry.gaugeMapSize("prometheus.proxy.scrape.active.connections", Tags.empty(), scrapableApps);
 
     this.scrapeTimerSuccess = Timer.builder("prometheus.proxy.scrape")
-      .tag("outcome", "success")
-      .publishPercentileHistogram()
-      .register(meterRegistry);
+        .tag("outcome", "success")
+        .publishPercentileHistogram()
+        .register(meterRegistry);
 
     this.scrapeTimerClosed = meterRegistry.timer("prometheus.proxy.scrape", "outcome", "closed");
     this.scrapePayload = DistributionSummary.builder("prometheus.proxy.scrape.payload")
-      .publishPercentileHistogram()
-      .baseUnit("bytes")
-      .register(meterRegistry);
+        .publishPercentileHistogram()
+        .baseUnit("bytes")
+        .register(meterRegistry);
 
     this.scrapeSocketsClosed = meterRegistry.counter("prometheus.proxy.scrape.sockets.closed");
   }
@@ -93,32 +97,32 @@ class PrometheusController {
     KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
 
     RSocketFactory.receive()
-      .frameDecoder(PayloadDecoder.ZERO_COPY)
-      .acceptor((setup, sendingSocket) -> acceptRSocket(generator, sendingSocket))
-      .transport(TcpServerTransport.create(this.properties.getTcpPort()))
-      .start()
-      .subscribe();
+        .frameDecoder(PayloadDecoder.ZERO_COPY)
+        .acceptor((setup, sendingSocket) -> acceptRSocket(generator, sendingSocket))
+        .transport(TcpServerTransport.create(this.properties.getTcpPort()))
+        .start()
+        .subscribe();
 
     RSocketFactory.receive()
-      .frameDecoder(PayloadDecoder.ZERO_COPY)
-      .acceptor((setup, sendingSocket) -> acceptRSocket(generator, sendingSocket))
-      .transport(WebsocketServerTransport.create(this.properties.getWebsocketPort()))
-      .start()
-      .subscribe();
+        .frameDecoder(PayloadDecoder.ZERO_COPY)
+        .acceptor((setup, sendingSocket) -> acceptRSocket(generator, sendingSocket))
+        .transport(WebsocketServerTransport.create(this.properties.getWebsocketPort()))
+        .start()
+        .subscribe();
   }
 
   private Mono<RSocket> acceptRSocket(KeyPairGenerator generator, RSocket sendingSocket) {
     // respond with Mono.error(..) to
+    RSocket metricsInterceptedSendingSocket = metricsInterceptor.apply(sendingSocket);
 
     ConnectionState connectionState = new ConnectionState(generator.generateKeyPair());
-    scrapableApps.put(metricsInterceptor.apply(sendingSocket), connectionState);
+    scrapableApps.put(metricsInterceptedSendingSocket, connectionState);
 
-    // for use by the client to push metrics as it's dying if this happens before the first scrape
-    sendingSocket.fireAndForget(connectionState.createKeyPayload())
-      .subscribe();
+    // a key to be used by the client to push metrics as it's dying if this happens before the first scrape
+    metricsInterceptedSendingSocket.fireAndForget(connectionState.createKeyPayload()).subscribe();
 
     // dispose this in order to disconnect the client
-    return Mono.just(new AbstractRSocket() {
+    RSocket dyingPushReceiver = new AbstractRSocket() {
       @Override
       public Mono<Void> fireAndForget(Payload payload) {
         try {
@@ -128,7 +132,9 @@ class PrometheusController {
         }
         return Mono.empty();
       }
-    });
+    };
+
+    return Mono.just(dyingPushReceiver);
   }
 
   @GetMapping(value = "/metrics/proxy", produces = "text/plain")
@@ -139,29 +145,32 @@ class PrometheusController {
   @GetMapping(value = "/metrics/connected", produces = "text/plain")
   public Mono<String> prometheus() {
     return Flux
-      .fromIterable(scrapableApps.entrySet())
-      .flatMap(socketAndState -> {
-        ConnectionState connectionState = socketAndState.getValue();
-        RSocket rsocket = socketAndState.getKey();
-        Timer.Sample sample = Timer.start();
-        return rsocket
-          .requestResponse(connectionState.createKeyPayload())
-          .map(payload -> connectionState.receiveScrapePayload(payload, sample))
-          .onErrorResume(throwable -> {
-            if (throwable instanceof ClosedChannelException) {
-              scrapeSocketsClosed.increment();
-              scrapableApps.remove(rsocket);
-              sample.stop(scrapeTimerClosed);
-              return connectionState.getDyingPush();
-            }
+        .fromIterable(scrapableApps.entrySet())
+        .flatMap(socketAndState -> {
+          ConnectionState connectionState = socketAndState.getValue();
+          RSocket rsocket = socketAndState.getKey();
+          Timer.Sample sample = Timer.start();
+          return rsocket
+              .requestResponse(connectionState.createKeyPayload())
+              .map(payload -> connectionState.receiveScrapePayload(payload, sample))
+              .onErrorResume(throwable -> {
+                scrapeSocketsClosed.increment();
 
-            sample.stop(meterRegistry.timer("prometheus.proxy.scrape", "outcome", "error",
-                "exception", throwable.getClass().getName()));
+                if (scrapableApps.remove(rsocket) != null) {
+                  meterRegistry.counter("prometheus.proxy.unrecognized.rsocket").increment();
+                }
 
-            return Mono.empty();
-          });
-      })
-      .collect(Collectors.joining("\n"));
+                if (throwable instanceof ClosedChannelException) {
+                  sample.stop(scrapeTimerClosed);
+                  return connectionState.getDyingPush();
+                } else {
+                  sample.stop(meterRegistry.timer("prometheus.proxy.scrape", "outcome", "error",
+                      "exception", throwable.getClass().getName()));
+                  return Mono.empty();
+                }
+              });
+        })
+        .collect(Collectors.joining("\n"));
   }
 
   class ConnectionState {
@@ -187,8 +196,8 @@ class PrometheusController {
         ByteBuf sliceMetadata = payload.sliceMetadata();
         ByteBuf sliceData = payload.sliceData();
         byte[] decrypted = decrypt(keyPair,
-          ByteBufUtil.getBytes(sliceMetadata, sliceMetadata.readerIndex(), sliceMetadata.readableBytes(), false),
-          ByteBufUtil.getBytes(sliceData, sliceData.readerIndex(), sliceData.readableBytes(), false));
+            ByteBufUtil.getBytes(sliceMetadata, sliceMetadata.readerIndex(), sliceMetadata.readableBytes(), false),
+            ByteBufUtil.getBytes(sliceData, sliceData.readerIndex(), sliceData.readableBytes(), false));
 
         String uncompressed = Snappy.uncompressString(decrypted);
         scrapePayload.record(uncompressed.length());
@@ -206,7 +215,7 @@ class PrometheusController {
     private byte[] decrypt(KeyPair keyPair, byte[] encryptedKey, byte[] data) {
       try {
         PrivateKey privateKey = KeyFactory.getInstance("RSA")
-          .generatePrivate(new PKCS8EncodedKeySpec(keyPair.getPrivate().getEncoded()));
+            .generatePrivate(new PKCS8EncodedKeySpec(keyPair.getPrivate().getEncoded()));
 
         Cipher cipher = Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding");
         cipher.init(Cipher.PRIVATE_KEY, privateKey);
