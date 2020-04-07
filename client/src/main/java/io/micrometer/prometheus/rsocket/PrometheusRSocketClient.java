@@ -71,7 +71,8 @@ public class PrometheusRSocketClient {
 
   public PrometheusRSocketClient(PrometheusMeterRegistry registry, ClientTransport transport,
                                  UnaryOperator<Flux<Void>> customizeAndRetry) {
-    this(registry, transport, customizeAndRetry, () -> {});
+    this(registry, transport, customizeAndRetry, () -> {
+    });
   }
 
   public PrometheusRSocketClient(PrometheusMeterRegistry registry, ClientTransport transport,
