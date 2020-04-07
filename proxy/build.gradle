@@ -24,7 +24,6 @@ publishing {
 dependencies {
   implementation 'org.springframework.boot:spring-boot-starter-actuator'
   implementation 'org.springframework.boot:spring-boot-starter-webflux'
-  implementation 'org.pcollections:pcollections:latest.release'
   implementation 'io.micrometer:micrometer-registry-prometheus'
   implementation 'io.rsocket:rsocket-micrometer'
   implementation 'io.rsocket:rsocket-transport-netty'

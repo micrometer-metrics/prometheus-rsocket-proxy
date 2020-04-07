@@ -39,10 +39,12 @@ class PrometheusRSocketClientTests {
 
   PrometheusMeterRegistry meterRegistry = new PrometheusMeterRegistry(PrometheusConfig.DEFAULT);
 
-  /** See https://github.com/micrometer-metrics/prometheus-rsocket-proxy/issues/3 */
+  /**
+   * See https://github.com/micrometer-metrics/prometheus-rsocket-proxy/issues/3
+   */
   @Test
   void dyingScrapeAfterNormalScrape() throws NoSuchAlgorithmException, InterruptedException {
-    CountDownLatch dyingScapeLatch = new CountDownLatch(1);
+    CountDownLatch dyingScrapeLatch = new CountDownLatch(1);
     Payload payload = DefaultPayload.create(KeyPairGenerator.getInstance("RSA").generateKeyPair().getPublic().getEncoded());
     RSocketFactory.receive()
         .frameDecoder(PayloadDecoder.ZERO_COPY)
@@ -52,7 +54,7 @@ class PrometheusRSocketClientTests {
           return Mono.just(new AbstractRSocket() {
             @Override
             public Mono<Void> fireAndForget(Payload payload) {
-              dyingScapeLatch.countDown();
+              dyingScrapeLatch.countDown();
               return Mono.empty();
             }
           });
@@ -65,7 +67,7 @@ class PrometheusRSocketClientTests {
 
     // trigger dying scrape
     client.pushAndClose();
-    assertThat(dyingScapeLatch.await(1, TimeUnit.SECONDS))
+    assertThat(dyingScrapeLatch.await(1, TimeUnit.SECONDS))
         .as("Dying scrape (fire-and-forget) should be successfully called")
         .isTrue();
   }
