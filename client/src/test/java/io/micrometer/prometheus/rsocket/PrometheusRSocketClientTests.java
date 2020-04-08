@@ -63,7 +63,9 @@ class PrometheusRSocketClientTests {
         .start()
         .block();
 
-    PrometheusRSocketClient client = new PrometheusRSocketClient(meterRegistry, serverTransport.clientTransport(), voidFlux -> voidFlux);
+    PrometheusRSocketClient client = PrometheusRSocketClient.build(meterRegistry, serverTransport.clientTransport())
+        .customizeAndRetry(voidFlux -> voidFlux)
+        .connect();
 
     // trigger dying scrape
     client.pushAndClose();

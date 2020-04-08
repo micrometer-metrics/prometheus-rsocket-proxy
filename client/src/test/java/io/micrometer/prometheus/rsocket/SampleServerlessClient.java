@@ -31,9 +31,9 @@ public class SampleServerlessClient {
     PrometheusMeterRegistry meterRegistry = new PrometheusMeterRegistry(PrometheusConfig.DEFAULT);
     meterRegistry.config().commonTags("process.id", ManagementFactory.getRuntimeMXBean().getName());
 
-    PrometheusRSocketClient client = new PrometheusRSocketClient(meterRegistry,
-      TcpClientTransport.create("localhost", 7001),
-      c -> c.retry(Long.MAX_VALUE));
+    PrometheusRSocketClient client = PrometheusRSocketClient
+        .build(meterRegistry, TcpClientTransport.create("localhost", 7001))
+        .connect();
 
     Random r = new Random();
 

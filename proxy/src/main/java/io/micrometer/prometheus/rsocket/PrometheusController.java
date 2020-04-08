@@ -119,6 +119,7 @@ class PrometheusController {
     scrapableApps.put(metricsInterceptedSendingSocket, connectionState);
 
     // a key to be used by the client to push metrics as it's dying if this happens before the first scrape
+    //noinspection CallingSubscribeInNonBlockingScope
     metricsInterceptedSendingSocket.fireAndForget(connectionState.createKeyPayload()).subscribe();
 
     // dispose this in order to disconnect the client
@@ -156,7 +157,7 @@ class PrometheusController {
               .onErrorResume(throwable -> {
                 scrapeSocketsClosed.increment();
 
-                if (scrapableApps.remove(rsocket) != null) {
+                if (scrapableApps.remove(rsocket) == null) {
                   meterRegistry.counter("prometheus.proxy.unrecognized.rsocket").increment();
                 }
 

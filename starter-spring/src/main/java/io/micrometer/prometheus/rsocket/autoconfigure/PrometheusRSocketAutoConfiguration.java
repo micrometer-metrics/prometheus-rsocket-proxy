@@ -37,7 +37,8 @@ public class PrometheusRSocketAutoConfiguration {
   @ConditionalOnMissingBean
   @Bean(destroyMethod = "pushAndClose")
   PrometheusRSocketClient prometheusRSocketClient(PrometheusMeterRegistry meterRegistry, PrometheusRSocketProperties properties) {
-    return new PrometheusRSocketClient(meterRegistry, properties.createClientTransport(),
-      c -> c.retryBackoff(properties.getMaxRetries(), properties.getFirstBackoff(), properties.getMaxBackoff()));
+    return PrometheusRSocketClient.build(meterRegistry, properties.createClientTransport())
+        .customizeAndRetry(c -> c.retryBackoff(properties.getMaxRetries(), properties.getFirstBackoff(), properties.getMaxBackoff()))
+        .connect();
   }
 }

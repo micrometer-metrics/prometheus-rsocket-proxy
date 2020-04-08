@@ -30,15 +30,14 @@ public class SampleClient {
     PrometheusMeterRegistry meterRegistry = new PrometheusMeterRegistry(PrometheusConfig.DEFAULT);
     meterRegistry.config().commonTags("process.id", ManagementFactory.getRuntimeMXBean().getName());
 
-    new PrometheusRSocketClient(meterRegistry,
-      WebsocketClientTransport.create("localhost", 8081),
-      c -> c.retry(Long.MAX_VALUE));
+    PrometheusRSocketClient.build(meterRegistry, WebsocketClientTransport.create("localhost", 8081))
+        .connect();
 
     Random r = new Random();
 
     Counter counter = meterRegistry.counter("my.counter", "instance", Integer.toString(r.nextInt(10)));
     Flux.interval(Duration.ofMillis(100))
-      .doOnEach(n -> counter.increment())
-      .blockLast();
+        .doOnEach(n -> counter.increment())
+        .blockLast();
   }
 }

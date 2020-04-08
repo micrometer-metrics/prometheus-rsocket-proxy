@@ -38,9 +38,9 @@ or
 ```java
 PrometheusMeterRegistry meterRegistry = new PrometheusMeterRegistry(PrometheusConfig.DEFAULT);
 
-PrometheusRSocketClient client = new PrometheusRSocketClient(meterRegistry,
-      TcpClientTransport.create("proxyhost", 7001),
-      c -> c.retryBackoff(Long.MAX_VALUE, Duration.ofSeconds(10), Duration.ofMinutes(10)));
+PrometheusRSocketClient client = PrometheusRSocketClient
+    .build(meterRegistry, TcpClientTransport.create("proxyhost", 7001))
+    .connect();
 
 // it isn't strictly necessary to close the client
 client.close();
@@ -78,9 +78,9 @@ management.metrics.export.prometheus.rsocket:
 Use `pushAndClose()` on the `PrometheusRSocketClient` in a shutdown hook for short-lived and serverless applications. This performs a [fire-and-forget](https://rsocket.io/docs/Protocol#stream-sequences-fire-and-forget) push of metrics to the proxy, which will hold them until the next scrape by Prometheus. In this way, you do not need to set up [Pushgateway](https://github.com/prometheus/pushgateway). The same RSocket proxy serves the needs of both long-lived and short-lived applications.
 
 ```java
-PrometheusRSocketClient client = new PrometheusRSocketClient(meterRegistry,
-      TcpClientTransport.create("proxyhost", 7001),
-      c -> c.retryBackoff(Long.MAX_VALUE, Duration.ofSeconds(10), Duration.ofMinutes(10)));
+PrometheusRSocketClient client = PrometheusRSocketClient
+    .build(meterRegistry, TcpClientTransport.create("proxyhost", 7001))
+    .connect();
 
 // in a shutdown hook
 client.pushAndClose();

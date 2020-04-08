@@ -34,10 +34,10 @@ public class SampleClientThatClosesManually {
 
     CountDownLatch keyExchanges = new CountDownLatch(1);
 
-    PrometheusRSocketClient client = new PrometheusRSocketClient(meterRegistry,
-        WebsocketClientTransport.create("localhost", 8081),
-        c -> c.retry(Long.MAX_VALUE),
-        keyExchanges::countDown);
+    PrometheusRSocketClient client = PrometheusRSocketClient
+        .build(meterRegistry, WebsocketClientTransport.create("localhost", 8081))
+        .onKeyExchanged(keyExchanges::countDown)
+        .connect();
 
     Random r = new Random();
 

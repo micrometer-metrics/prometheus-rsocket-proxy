@@ -38,26 +38,25 @@ public class SampleManyClients {
     ((Logger) LoggerFactory.getLogger(Logger.ROOT_LOGGER_NAME)).setLevel(Level.INFO);
 
     List<PrometheusMeterRegistry> registries = IntStream.range(0, CLIENT_COUNT)
-      .mapToObj(n -> {
-        PrometheusMeterRegistry meterRegistry = new PrometheusMeterRegistry(PrometheusConfig.DEFAULT, new CollectorRegistry(), Clock.SYSTEM);
-        meterRegistry.config().commonTags("client.id", Integer.toString(n));
+        .mapToObj(n -> {
+          PrometheusMeterRegistry meterRegistry = new PrometheusMeterRegistry(PrometheusConfig.DEFAULT, new CollectorRegistry(), Clock.SYSTEM);
+          meterRegistry.config().commonTags("client.id", Integer.toString(n));
 
-        new PrometheusRSocketClient(meterRegistry,
-          TcpClientTransport.create("localhost", 7001),
-          c -> c.retry(Long.MAX_VALUE));
+          PrometheusRSocketClient.build(meterRegistry, TcpClientTransport.create("localhost", 7001))
+              .connect();
 
-        return meterRegistry;
-      })
-      .collect(Collectors.toList());
+          return meterRegistry;
+        })
+        .collect(Collectors.toList());
 
     Flux.interval(Duration.ofMillis(100))
-      .doOnEach(n -> {
-        for (PrometheusMeterRegistry meterRegistry : registries) {
-          for (int r = 0; r < ROW_COUNT; r++) {
-            meterRegistry.counter("my.counter", "row", Integer.toString(r)).increment();
+        .doOnEach(n -> {
+          for (PrometheusMeterRegistry meterRegistry : registries) {
+            for (int r = 0; r < ROW_COUNT; r++) {
+              meterRegistry.counter("my.counter", "row", Integer.toString(r)).increment();
+            }
           }
-        }
-      })
-      .blockLast();
+        })
+        .blockLast();
   }
 }

@@ -16,6 +16,7 @@
 package io.micrometer.prometheus.rsocket;
 
 import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.rsocket.*;
 import io.rsocket.transport.ClientTransport;
@@ -36,6 +37,7 @@ import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 import java.util.function.UnaryOperator;
 
 /**
@@ -44,7 +46,8 @@ import java.util.function.UnaryOperator;
  * from each client.
  */
 public class PrometheusRSocketClient {
-  private final PrometheusMeterRegistry registry;
+  private final MeterRegistryAndScrape<?> registryAndScrape;
+
   private final Disposable connection;
   private AtomicReference<PublicKey> latestKey = new AtomicReference<>();
 
@@ -69,46 +72,67 @@ public class PrometheusRSocketClient {
   private RSocket sendingSocket;
   private Runnable onKeyExchanged;
 
-  public PrometheusRSocketClient(PrometheusMeterRegistry registry, ClientTransport transport,
-                                 UnaryOperator<Flux<Void>> customizeAndRetry) {
-    this(registry, transport, customizeAndRetry, () -> {
-    });
-  }
-
-  public PrometheusRSocketClient(PrometheusMeterRegistry registry, ClientTransport transport,
-                                 UnaryOperator<Flux<Void>> customizeAndRetry,
-                                 Runnable onKeyExchanged) {
-    this.registry = registry;
+  private PrometheusRSocketClient(MeterRegistryAndScrape<?> registryAndScrape,
+                                  ClientTransport transport,
+                                  UnaryOperator<Flux<Void>> customizeAndRetry,
+                                  Runnable onKeyExchanged) {
+    this.registryAndScrape = registryAndScrape;
     this.onKeyExchanged = onKeyExchanged;
     Counter attempts = Counter.builder("prometheus.connection.attempts")
-      .description("Attempts at making an outbound RSocket connection to the Prometheus proxy")
-      .baseUnit("attempts")
-      .register(registry);
+        .description("Attempts at making an outbound RSocket connection to the Prometheus proxy")
+        .baseUnit("attempts")
+        .register(registryAndScrape.registry);
     attempts.increment();
 
     this.connection = customizeAndRetry.apply(RSocketFactory.connect()
-      .acceptor(r -> {
-        this.sendingSocket = r;
-        return rsocket;
-      })
-      .transport(transport)
-      .start()
-      .doOnCancel(() -> {
-        if (pushOnDisconnect) {
-          PublicKey key = latestKey.get();
-          if (key != null) {
-            sendingSocket
-              .fireAndForget(scrapePayload(key))
-              .block(Duration.ofSeconds(10));
+        .acceptor(r -> {
+          this.sendingSocket = r;
+          return rsocket;
+        })
+        .transport(transport)
+        .start()
+        .doOnCancel(() -> {
+          if (pushOnDisconnect) {
+            PublicKey key = latestKey.get();
+            if (key != null) {
+              sendingSocket
+                  .fireAndForget(scrapePayload(key))
+                  .block(Duration.ofSeconds(10));
+            }
           }
-        }
-      })
-      .flatMap(Closeable::onClose)
-      .repeat(() -> {
-        attempts.increment();
-        return true;
-      })
+        })
+        .flatMap(Closeable::onClose)
+        .repeat(() -> {
+          attempts.increment();
+          return true;
+        })
     ).subscribe();
+  }
+
+  /**
+   * The most common case is that you want to both register proxy client metrics to a {@link PrometheusMeterRegistry} and
+   * also scrape from that registry.
+   *
+   * @param prometheusMeterRegistry The registry to scrape metrics from and also publish client metrics to.
+   * @param clientTransport         The transport to connect to the proxy server with.
+   * @return The client, connecting asynchronously at the point of return.
+   */
+  public static Builder build(PrometheusMeterRegistry prometheusMeterRegistry, ClientTransport clientTransport) {
+    return new Builder(prometheusMeterRegistry, prometheusMeterRegistry::scrape, clientTransport);
+  }
+
+  /**
+   * A generalization of {@link #build(PrometheusMeterRegistry, ClientTransport)} where you define the scrape function yourself.
+   * This is useful when, for example, you want to concatenate scrapes from several {@link PrometheusMeterRegistry} instances,
+   * perhaps each with different common tags for different parts of the application, and present these together as the scrape.
+   *
+   * @param meterRegistry   The registry to publish client metrics to.
+   * @param scrape          A scrape in the Prometheus format used.
+   * @param clientTransport The transport to connect to the proxy server with.
+   * @return The client, connecting asynchronously at the point of return.
+   */
+  public static <M extends MeterRegistry> Builder build(M meterRegistry, Supplier<String> scrape, ClientTransport clientTransport) {
+    return new Builder(meterRegistry, scrape, clientTransport);
   }
 
   public void close() {
@@ -128,7 +152,7 @@ public class PrometheusRSocketClient {
 
       Cipher aesCipher = Cipher.getInstance("AES");
       aesCipher.init(Cipher.ENCRYPT_MODE, secKey);
-      byte[] encryptedMetrics = aesCipher.doFinal(Snappy.compress(registry.scrape()));
+      byte[] encryptedMetrics = aesCipher.doFinal(Snappy.compress(registryAndScrape.scrape()));
 
       Cipher cipher = Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding");
       cipher.init(Cipher.PUBLIC_KEY, publicKey);
@@ -150,6 +174,48 @@ public class PrometheusRSocketClient {
       return keyFactory.generatePublic(keySpec);
     } catch (NoSuchAlgorithmException | InvalidKeySpecException e) {
       throw new IllegalStateException(e);
+    }
+  }
+
+  public static class Builder {
+    private MeterRegistryAndScrape<?> registryAndScrape;
+    private final ClientTransport clientTransport;
+
+    private UnaryOperator<Flux<Void>> customizeAndRetry = c -> c.retryBackoff(Long.MAX_VALUE, Duration.ofSeconds(10), Duration.ofMinutes(10));
+    private Runnable onKeyExchanged = () -> {
+    };
+
+    <M extends MeterRegistry> Builder(M registry, Supplier<String> scrape, ClientTransport clientTransport) {
+      this.registryAndScrape = new MeterRegistryAndScrape<>(registry, scrape);
+      this.clientTransport = clientTransport;
+    }
+
+    public Builder customizeAndRetry(UnaryOperator<Flux<Void>> customizeAndRetry) {
+      this.customizeAndRetry = customizeAndRetry;
+      return this;
+    }
+
+    public Builder onKeyExchanged(Runnable onKeyExchanged) {
+      this.onKeyExchanged = onKeyExchanged;
+      return this;
+    }
+
+    public PrometheusRSocketClient connect() {
+      return new PrometheusRSocketClient(registryAndScrape, clientTransport, customizeAndRetry, onKeyExchanged);
+    }
+  }
+
+  private static class MeterRegistryAndScrape<M extends MeterRegistry> {
+    final M registry;
+    final Supplier<String> scrape;
+
+    private MeterRegistryAndScrape(M registry, Supplier<String> scrape) {
+      this.registry = registry;
+      this.scrape = scrape;
+    }
+
+    String scrape() {
+      return scrape.get();
     }
   }
 }
