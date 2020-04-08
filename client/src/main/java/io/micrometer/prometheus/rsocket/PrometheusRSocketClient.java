@@ -17,6 +17,7 @@ package io.micrometer.prometheus.rsocket;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.lang.Nullable;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.rsocket.*;
 import io.rsocket.transport.ClientTransport;
@@ -30,6 +31,7 @@ import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
 import javax.crypto.SecretKey;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
 import java.security.PublicKey;
@@ -145,7 +147,13 @@ public class PrometheusRSocketClient {
     close();
   }
 
-  private Payload scrapePayload(PublicKey publicKey) {
+  private Payload scrapePayload(@Nullable PublicKey publicKey) {
+    String scrape = registryAndScrape.scrape();
+
+    if (publicKey == null) {
+      return DefaultPayload.create(scrape, "plaintext");
+    }
+
     try {
       KeyGenerator generator = KeyGenerator.getInstance("AES");
       generator.init(128);
@@ -153,7 +161,7 @@ public class PrometheusRSocketClient {
 
       Cipher aesCipher = Cipher.getInstance("AES");
       aesCipher.init(Cipher.ENCRYPT_MODE, secKey);
-      byte[] encryptedMetrics = aesCipher.doFinal(Snappy.compress(registryAndScrape.scrape()));
+      byte[] encryptedMetrics = aesCipher.doFinal(Snappy.compress(scrape));
 
       Cipher cipher = Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding");
       cipher.init(Cipher.PUBLIC_KEY, publicKey);
@@ -165,9 +173,14 @@ public class PrometheusRSocketClient {
     }
   }
 
+  @Nullable
   private PublicKey decodePublicKey(ByteBuffer encodedKeyBuffer) {
     byte[] encodedKey = new byte[encodedKeyBuffer.capacity()];
     encodedKeyBuffer.get(encodedKey);
+
+    if ("plaintext".equals(new String(encodedKey, StandardCharsets.UTF_8))) {
+      return null;
+    }
 
     X509EncodedKeySpec keySpec = new X509EncodedKeySpec(encodedKey);
     try {
