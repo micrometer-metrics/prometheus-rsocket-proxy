@@ -51,6 +51,7 @@ class PrometheusRSocketClientTests {
         .acceptor((setup, sendingSocket) -> {
           // normal scrape
           sendingSocket.requestResponse(payload).subscribe();
+
           return Mono.just(new AbstractRSocket() {
             @Override
             public Mono<Void> fireAndForget(Payload payload) {
@@ -63,9 +64,21 @@ class PrometheusRSocketClientTests {
         .start()
         .block();
 
-    PrometheusRSocketClient client = PrometheusRSocketClient.build(meterRegistry, serverTransport.clientTransport())
+    CountDownLatch normalScrapeLatch = new CountDownLatch(1);
+
+    PrometheusRSocketClient client = PrometheusRSocketClient
+        .build(
+            meterRegistry,
+            () -> {
+              normalScrapeLatch.countDown();
+              return meterRegistry.scrape();
+            },
+            serverTransport.clientTransport()
+        )
         .customizeAndRetry(voidFlux -> voidFlux)
         .connect();
+
+    normalScrapeLatch.await(1, TimeUnit.SECONDS);
 
     // trigger dying scrape
     client.pushAndClose();
