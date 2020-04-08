@@ -14,7 +14,7 @@ buildscript {
 
 apply plugin: 'io.spring.release'
 
-allprojects {
+subprojects {
   apply plugin: 'io.spring.license'
   apply plugin: 'io.spring.publishing'
 

@@ -129,6 +129,7 @@ public class PrometheusRSocketClient {
    * @param meterRegistry   The registry to publish client metrics to.
    * @param scrape          A scrape in the Prometheus format used.
    * @param clientTransport The transport to connect to the proxy server with.
+   * @param <M>             The type of registry to publish client metrics to.
    * @return The client, connecting asynchronously at the point of return.
    */
   public static <M extends MeterRegistry> Builder build(M meterRegistry, Supplier<String> scrape, ClientTransport clientTransport) {
