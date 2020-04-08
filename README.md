@@ -86,6 +86,29 @@ PrometheusRSocketClient client = PrometheusRSocketClient
 client.pushAndClose();
 ```
 
+## One client for multiple `PrometheusMeterRegistry` instances
+
+Use the alternate build method to concatenate results from multiple `PrometheusMeterRegistry` instances. You might have multiple instances when you create a different registry for different components of your application with different common tags, etc.
+
+```java
+PrometheusMeterRegistry topLevelRegistry = new PrometheusMeterRegistry(PrometheusConfig.DEFAULT);
+new JvmGcMetrics().bind(topLevelRegistry);
+
+PrometheusMeterRegistry comp1Registry = new PrometheusMeterRegistry(PrometheusConfig.DEFAULT);
+comp1Registry.config().commonTags("component", "comp1");
+
+PrometheusMeterRegistry comp2Registry = new PrometheusMeterRegistry(PrometheusConfig.DEFAULT);
+comp1Registry.config().commonTags("component", "comp2");
+
+PrometheusRSocketClient client = PrometheusRSocketClient
+    .build(
+        topLevelRegistry,
+        () -> topLevelRegistry.scrape() + "\n" + comp1Registry.scrape() + "\n" + comp2Registry.scrape(),
+        TcpClientTransport.create("proxyhost", 7001)
+    )
+    .connect();
+```
+
 ## Installing on Kubernetes (GKE)
 
 This installation includes Prometheus and Grafana as well.
