@@ -62,7 +62,6 @@ class PrometheusController {
   private final PrometheusMeterRegistry meterRegistry;
   private final Timer scrapeTimerSuccess;
   private final Timer scrapeTimerClosed;
-  private final Counter scrapeSocketsClosed;
   private final DistributionSummary scrapePayload;
   private final MicrometerRSocketInterceptor metricsInterceptor;
   private final PrometheusControllerProperties properties;
@@ -85,8 +84,6 @@ class PrometheusController {
         .publishPercentileHistogram()
         .baseUnit("bytes")
         .register(meterRegistry);
-
-    this.scrapeSocketsClosed = meterRegistry.counter("prometheus.proxy.scrape.sockets.closed");
   }
 
   @PostConstruct
@@ -95,11 +92,11 @@ class PrometheusController {
 
     RSocketFactory.receive()
         .errorConsumer(t ->
-          Counter.builder("prometheus.proxy.connection.error")
-            .tag("exception", t.getClass().getName())
-            .tag("transport", "TCP")
-            .register(meterRegistry)
-            .increment()
+            Counter.builder("prometheus.proxy.connection.error")
+                .tag("exception", t.getClass().getName())
+                .tag("transport", "TCP")
+                .register(meterRegistry)
+                .increment()
         )
         .frameDecoder(PayloadDecoder.ZERO_COPY)
         .acceptor((setup, sendingSocket) -> acceptRSocket(generator, sendingSocket))
@@ -163,24 +160,16 @@ class PrometheusController {
               .requestResponse(connectionState.createKeyPayload())
               .map(payload -> connectionState.receiveScrapePayload(payload, sample))
               .onErrorResume(throwable -> {
-                scrapeSocketsClosed.increment();
-
-                if (scrapableApps.remove(rsocket) == null) {
-                  meterRegistry.counter("prometheus.proxy.unrecognized.rsocket").increment();
-                }
+                scrapableApps.remove(rsocket);
 
                 if (throwable instanceof ClosedChannelException) {
                   sample.stop(scrapeTimerClosed);
                 } else {
-                  String message = throwable.getMessage();
-                  if("CLOSE_REQUESTED_BY_CLIENT".equals(message)) {
-                    sample.stop(scrapeTimerClosed);
-                  } else {
-                    sample.stop(meterRegistry.timer("prometheus.proxy.scrape",
-                        "outcome", "error",
-                        "exception", message));
-                  }
+                  sample.stop(meterRegistry.timer("prometheus.proxy.scrape",
+                      "outcome", "error",
+                      "exception", throwable.getMessage()));
                 }
+
                 return connectionState.getDyingPush();
               });
         })

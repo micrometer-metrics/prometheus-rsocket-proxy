@@ -28,7 +28,6 @@ import io.rsocket.transport.ClientTransport;
 import io.rsocket.util.DefaultPayload;
 import org.reactivestreams.Publisher;
 import org.xerial.snappy.Snappy;
-import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.retry.Retry;
@@ -55,30 +54,8 @@ import java.util.function.Supplier;
 public class PrometheusRSocketClient {
   private final MeterRegistryAndScrape<?> registryAndScrape;
 
-  private final Disposable connection;
+  private volatile RSocket connection;
   private AtomicReference<PublicKey> latestKey = new AtomicReference<>();
-  private final Runnable onKeyReceived;
-
-  private final AbstractRSocket rsocket = new AbstractRSocket() {
-    @Override
-    public Mono<Payload> requestResponse(Payload payload) {
-      PublicKey key = decodePublicKey(payload.getData());
-      latestKey.set(key);
-      onKeyReceived.run();
-      try {
-        return requestedDisconnect ? Mono.error(new IllegalStateException("CLOSE_REQUESTED_BY_CLIENT")) : Mono.just(scrapePayload(key));
-      } catch (Exception e) {
-        return Mono.error(e);
-      }
-    }
-
-    @Override
-    public Mono<Void> fireAndForget(Payload payload) {
-      latestKey.set(decodePublicKey(payload.getData()));
-      onKeyReceived.run();
-      return Mono.empty();
-    }
-  };
 
   private volatile boolean requestedDisconnect = false;
   private RSocket sendingSocket;
@@ -88,9 +65,8 @@ public class PrometheusRSocketClient {
                                   Retry retry,
                                   Runnable onKeyReceived) {
     this.registryAndScrape = registryAndScrape;
-    this.onKeyReceived = onKeyReceived;
 
-    this.connection = RSocketFactory.connect()
+    RSocketFactory.connect()
         .errorConsumer(t ->
             Counter.builder("prometheus.connection.error")
                 .tag("exception", t.getClass().getName())
@@ -101,25 +77,43 @@ public class PrometheusRSocketClient {
           @Override
           public Publisher<?> generateCompanion(Flux<RetrySignal> retrySignals) {
             return retry.generateCompanion(retrySignals
-                .doOnNext(retrySignal ->
-                    DistributionSummary.builder("prometheus.connection.retry")
-                        .description("Attempts at retrying an RSocket connection to the Prometheus proxy")
-                        .baseUnit("retries")
-                        .tag("exception", retrySignal.failure().getCause().getMessage())
-                        .register(registryAndScrape.registry)
-                        .record(retrySignal.totalRetries())
+                .doOnNext(retrySignal -> {
+                      Throwable failure = retrySignal.failure();
+                      DistributionSummary.builder("prometheus.connection.retry")
+                          .description("Attempts at retrying an RSocket connection to the Prometheus proxy")
+                          .baseUnit("retries")
+                          .tag("exception", failure.getCause() != null ? failure.getCause().getMessage() : failure.getMessage())
+                          .register(registryAndScrape.registry)
+                          .record(retrySignal.totalRetries());
+                    }
                 )
             );
           }
         })
         .acceptor(r -> {
           this.sendingSocket = r;
-          return rsocket;
+          return new AbstractRSocket() {
+            @Override
+            public Mono<Payload> requestResponse(Payload payload) {
+              PublicKey key = decodePublicKey(payload.getData());
+              latestKey.set(key);
+              onKeyReceived.run();
+              return Mono.fromCallable(() -> scrapePayload(key));
+            }
+
+            @Override
+            public Mono<Void> fireAndForget(Payload payload) {
+              latestKey.set(decodePublicKey(payload.getData()));
+              onKeyReceived.run();
+              return Mono.empty();
+            }
+          };
         })
         .transport(transport)
         .start()
+        .doOnNext(connection -> this.connection = connection)
         .flatMap(RSocket::onClose)
-        .repeat()
+        .repeat(() -> !requestedDisconnect)
         .subscribe();
   }
 
@@ -152,7 +146,9 @@ public class PrometheusRSocketClient {
 
   public void close() {
     this.requestedDisconnect = true;
-    connection.dispose();
+    if (this.connection != null) {
+      this.connection.dispose();
+    }
   }
 
   public Mono<Void> pushAndClose() {

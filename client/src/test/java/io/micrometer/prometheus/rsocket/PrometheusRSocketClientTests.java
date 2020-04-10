@@ -22,8 +22,8 @@ import io.rsocket.Payload;
 import io.rsocket.RSocket;
 import io.rsocket.RSocketFactory;
 import io.rsocket.frame.decoder.PayloadDecoder;
+import io.rsocket.transport.local.LocalClientTransport;
 import io.rsocket.transport.local.LocalServerTransport;
-import io.rsocket.transport.netty.client.TcpClientTransport;
 import io.rsocket.util.DefaultPayload;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Mono;
@@ -46,29 +46,18 @@ class PrometheusRSocketClientTests {
 
   @Test
   void reconnection() throws InterruptedException {
-    CountDownLatch connectionLatch = new CountDownLatch(1);
+    LocalServerTransport serverTransport = LocalServerTransport.createEphemeral();
+    serverTransport.start(connection -> {
+      connection.dispose();
+      return Mono.empty();
+    }, 0);
 
-    RSocketFactory.receive()
-        .frameDecoder(PayloadDecoder.ZERO_COPY)
-        .acceptor((setup, sendingSocket) -> {
-          // the connection will be disposed before this is ever reached, triggering retries by the client
-          return Mono.empty();
-        })
-        .transport(serverTransport)
-        .start()
-        .subscribe(connection -> {
-          connection.dispose();
-          connectionLatch.countDown();
-        });
-
-    assertThat(connectionLatch.await(1, TimeUnit.SECONDS)).isTrue();
-
-    TcpClientTransport clientTransport = TcpClientTransport.create("localhost", 7103);
+    LocalClientTransport local = LocalClientTransport.create("local");
 
     CountDownLatch reconnectionAttemptLatch = new CountDownLatch(3);
 
-    PrometheusRSocketClient.build(meterRegistry, clientTransport)
-        .retry(Retry.max(3).doAfterRetry(retry -> reconnectionAttemptLatch.countDown()))
+    PrometheusRSocketClient.build(meterRegistry, local)
+        .retry(Retry.fixedDelay(10, Duration.ofMillis(5)).doAfterRetry(retry -> reconnectionAttemptLatch.countDown()))
         .connect();
 
     assertThat(reconnectionAttemptLatch.await(1, TimeUnit.SECONDS)).isTrue();
