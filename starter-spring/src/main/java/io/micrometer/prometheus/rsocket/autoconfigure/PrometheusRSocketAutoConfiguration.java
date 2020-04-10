@@ -26,6 +26,7 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import reactor.util.retry.Retry;
 
 @Configuration
 @AutoConfigureAfter(PrometheusMetricsExportAutoConfiguration.class)
@@ -38,7 +39,8 @@ public class PrometheusRSocketAutoConfiguration {
   @Bean(destroyMethod = "pushAndClose")
   PrometheusRSocketClient prometheusRSocketClient(PrometheusMeterRegistry meterRegistry, PrometheusRSocketProperties properties) {
     return PrometheusRSocketClient.build(meterRegistry, properties.createClientTransport())
-        .customizeAndRetry(c -> c.retryBackoff(properties.getMaxRetries(), properties.getFirstBackoff(), properties.getMaxBackoff()))
+        .retry(Retry.backoff(properties.getMaxRetries(), properties.getFirstBackoff())
+            .maxBackoff(properties.getMaxBackoff()))
         .connect();
   }
 }
