@@ -150,11 +150,12 @@ class PrometheusRSocketClientTests {
         .isTrue();
 
     // after pushAndClose(), the client should no longer be scrapable
-    Boolean failed = serverSocket.get().requestResponse(payload)
+    Boolean failed = serverSocket.get()
+        .requestResponse(payload)
         .map(response -> false)
         .onErrorReturn(true)
         .block(Duration.ofSeconds(10));
 
-    assertThat(failed).isNull();
+    assertThat(failed).isTrue();
   }
 }

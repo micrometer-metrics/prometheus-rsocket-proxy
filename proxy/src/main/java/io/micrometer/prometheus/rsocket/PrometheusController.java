@@ -76,10 +76,11 @@ class PrometheusController {
 
     this.scrapeTimerSuccess = Timer.builder("prometheus.proxy.scrape")
         .tag("outcome", "success")
+        .tag("exception", "none")
         .publishPercentileHistogram()
         .register(meterRegistry);
 
-    this.scrapeTimerClosed = meterRegistry.timer("prometheus.proxy.scrape", "outcome", "closed");
+    this.scrapeTimerClosed = meterRegistry.timer("prometheus.proxy.scrape", "outcome", "closed", "exception", "none");
     this.scrapePayload = DistributionSummary.builder("prometheus.proxy.scrape.payload")
         .publishPercentileHistogram()
         .baseUnit("bytes")
@@ -132,8 +133,7 @@ class PrometheusController {
     //noinspection CallingSubscribeInNonBlockingScope
     metricsInterceptedSendingSocket.fireAndForget(connectionState.createKeyPayload()).subscribe();
 
-    // dispose this in order to disconnect the client
-    RSocket dyingPushReceiver = new AbstractRSocket() {
+    return Mono.just(new AbstractRSocket() {
       @Override
       public Mono<Void> fireAndForget(Payload payload) {
         try {
@@ -143,9 +143,7 @@ class PrometheusController {
         }
         return Mono.empty();
       }
-    };
-
-    return Mono.just(dyingPushReceiver);
+    });
   }
 
   @GetMapping(value = "/metrics/proxy", produces = "text/plain")
@@ -173,12 +171,17 @@ class PrometheusController {
 
                 if (throwable instanceof ClosedChannelException) {
                   sample.stop(scrapeTimerClosed);
-                  return connectionState.getDyingPush();
                 } else {
-                  sample.stop(meterRegistry.timer("prometheus.proxy.scrape", "outcome", "error",
-                      "exception", throwable.getClass().getName()));
-                  return Mono.empty();
+                  String message = throwable.getMessage();
+                  if("CLOSE_REQUESTED_BY_CLIENT".equals(message)) {
+                    sample.stop(scrapeTimerClosed);
+                  } else {
+                    sample.stop(meterRegistry.timer("prometheus.proxy.scrape",
+                        "outcome", "error",
+                        "exception", message));
+                  }
                 }
+                return connectionState.getDyingPush();
               });
         })
         .collect(Collectors.joining("\n"));

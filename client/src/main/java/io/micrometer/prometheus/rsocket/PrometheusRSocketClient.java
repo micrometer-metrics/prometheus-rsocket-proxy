@@ -45,7 +45,6 @@ import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
@@ -58,19 +57,25 @@ public class PrometheusRSocketClient {
 
   private final Disposable connection;
   private AtomicReference<PublicKey> latestKey = new AtomicReference<>();
+  private final Runnable onKeyReceived;
 
   private final AbstractRSocket rsocket = new AbstractRSocket() {
     @Override
     public Mono<Payload> requestResponse(Payload payload) {
       PublicKey key = decodePublicKey(payload.getData());
       latestKey.set(key);
-
-      return requestedDisconnect ? Mono.empty() : Mono.just(scrapePayload(key));
+      onKeyReceived.run();
+      try {
+        return requestedDisconnect ? Mono.error(new IllegalStateException("CLOSE_REQUESTED_BY_CLIENT")) : Mono.just(scrapePayload(key));
+      } catch (Exception e) {
+        return Mono.error(e);
+      }
     }
 
     @Override
     public Mono<Void> fireAndForget(Payload payload) {
       latestKey.set(decodePublicKey(payload.getData()));
+      onKeyReceived.run();
       return Mono.empty();
     }
   };
@@ -81,8 +86,9 @@ public class PrometheusRSocketClient {
   private PrometheusRSocketClient(MeterRegistryAndScrape<?> registryAndScrape,
                                   ClientTransport transport,
                                   Retry retry,
-                                  Consumer<RSocket> onConnected) {
+                                  Runnable onKeyReceived) {
     this.registryAndScrape = registryAndScrape;
+    this.onKeyReceived = onKeyReceived;
 
     this.connection = RSocketFactory.connect()
         .errorConsumer(t ->
@@ -112,6 +118,8 @@ public class PrometheusRSocketClient {
         })
         .transport(transport)
         .start()
+        .flatMap(RSocket::onClose)
+        .repeat()
         .subscribe();
   }
 
@@ -150,37 +158,37 @@ public class PrometheusRSocketClient {
   public Mono<Void> pushAndClose() {
     PublicKey key = latestKey.get();
     if (key != null) {
-      return sendingSocket
-          .fireAndForget(scrapePayload(key))
-          .doOnTerminate(this::close);
+      try {
+        return sendingSocket
+            .fireAndForget(scrapePayload(key))
+            .then(Mono.fromRunnable(this::close));
+      } catch (Exception ignored) {
+        // give up, we tried...
+      }
     }
-    return Mono.empty();
+    return Mono.fromRunnable(this::close);
   }
 
-  private Payload scrapePayload(@Nullable PublicKey publicKey) {
+  private Payload scrapePayload(@Nullable PublicKey publicKey) throws Exception {
     String scrape = registryAndScrape.scrape();
 
     if (publicKey == null) {
       return DefaultPayload.create(scrape, "plaintext");
     }
 
-    try {
-      KeyGenerator generator = KeyGenerator.getInstance("AES");
-      generator.init(128);
-      SecretKey secKey = generator.generateKey();
+    KeyGenerator generator = KeyGenerator.getInstance("AES");
+    generator.init(128);
+    SecretKey secKey = generator.generateKey();
 
-      Cipher aesCipher = Cipher.getInstance("AES");
-      aesCipher.init(Cipher.ENCRYPT_MODE, secKey);
-      byte[] encryptedMetrics = aesCipher.doFinal(Snappy.compress(scrape));
+    Cipher aesCipher = Cipher.getInstance("AES");
+    aesCipher.init(Cipher.ENCRYPT_MODE, secKey);
+    byte[] encryptedMetrics = aesCipher.doFinal(Snappy.compress(scrape));
 
-      Cipher cipher = Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding");
-      cipher.init(Cipher.PUBLIC_KEY, publicKey);
-      byte[] encryptedPublicKey = cipher.doFinal(secKey.getEncoded());
+    Cipher cipher = Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding");
+    cipher.init(Cipher.PUBLIC_KEY, publicKey);
+    byte[] encryptedPublicKey = cipher.doFinal(secKey.getEncoded());
 
-      return DefaultPayload.create(encryptedMetrics, encryptedPublicKey);
-    } catch (Throwable e) {
-      throw new IllegalArgumentException(e);
-    }
+    return DefaultPayload.create(encryptedMetrics, encryptedPublicKey);
   }
 
   @Nullable
@@ -208,6 +216,8 @@ public class PrometheusRSocketClient {
     private Retry retry = Retry.backoff(Long.MAX_VALUE, Duration.ofSeconds(10))
         .maxBackoff(Duration.ofMinutes(10));
 
+    private Runnable onKeyReceived = () -> { };
+
     <M extends MeterRegistry> Builder(M registry, Supplier<String> scrape, ClientTransport clientTransport) {
       this.registryAndScrape = new MeterRegistryAndScrape<>(registry, scrape);
       this.clientTransport = clientTransport;
@@ -218,12 +228,13 @@ public class PrometheusRSocketClient {
       return this;
     }
 
-    public PrometheusRSocketClient connect() {
-      return connect(rsocket -> { });
+    public Builder doOnKeyReceived(Runnable onKeyReceived) {
+      this.onKeyReceived = onKeyReceived;
+      return this;
     }
 
-    public PrometheusRSocketClient connect(Consumer<RSocket> onConnected) {
-      return new PrometheusRSocketClient(registryAndScrape, clientTransport, retry, onConnected);
+    public PrometheusRSocketClient connect() {
+      return new PrometheusRSocketClient(registryAndScrape, clientTransport, retry, onKeyReceived);
     }
   }
 
@@ -239,9 +250,5 @@ public class PrometheusRSocketClient {
     String scrape() {
       return scrape.get();
     }
-  }
-
-  public Disposable getConnection() {
-    return connection;
   }
 }

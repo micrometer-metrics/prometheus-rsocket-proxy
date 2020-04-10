@@ -20,6 +20,7 @@ import io.micrometer.prometheus.PrometheusConfig;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.rsocket.transport.netty.client.WebsocketClientTransport;
 import reactor.core.publisher.Flux;
+import reactor.util.retry.Retry;
 
 import java.lang.management.ManagementFactory;
 import java.time.Duration;
@@ -31,6 +32,7 @@ public class SampleClient {
     meterRegistry.config().commonTags("process.id", ManagementFactory.getRuntimeMXBean().getName());
 
     PrometheusRSocketClient.build(meterRegistry, WebsocketClientTransport.create("localhost", 8081))
+        .retry(Retry.fixedDelay(3, Duration.ofSeconds(1)))
         .connect();
 
     Random r = new Random();
