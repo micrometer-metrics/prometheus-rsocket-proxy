@@ -16,16 +16,22 @@
 package io.micrometer.prometheus.rsocket;
 
 import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.lang.Nullable;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
-import io.rsocket.*;
+import io.rsocket.AbstractRSocket;
+import io.rsocket.Payload;
+import io.rsocket.RSocket;
+import io.rsocket.RSocketFactory;
 import io.rsocket.transport.ClientTransport;
 import io.rsocket.util.DefaultPayload;
+import org.reactivestreams.Publisher;
 import org.xerial.snappy.Snappy;
 import reactor.core.Disposable;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.util.retry.Retry;
 
 import javax.crypto.Cipher;
 import javax.crypto.KeyGenerator;
@@ -40,7 +46,6 @@ import java.security.spec.X509EncodedKeySpec;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
-import java.util.function.UnaryOperator;
 
 /**
  * Establishes a persistent bidirectional RSocket connection to a Prometheus RSocket proxy.
@@ -59,7 +64,8 @@ public class PrometheusRSocketClient {
       PublicKey key = decodePublicKey(payload.getData());
       latestKey.set(key);
       onKeyExchanged.run();
-      return Mono.just(scrapePayload(key));
+
+      return requestedDisconnect ? Mono.empty() : Mono.just(scrapePayload(key));
     }
 
     @Override
@@ -70,45 +76,46 @@ public class PrometheusRSocketClient {
     }
   };
 
-  private boolean pushOnDisconnect = false;
+  private volatile boolean requestedDisconnect = false;
   private RSocket sendingSocket;
   private Runnable onKeyExchanged;
 
   private PrometheusRSocketClient(MeterRegistryAndScrape<?> registryAndScrape,
                                   ClientTransport transport,
-                                  UnaryOperator<Flux<Void>> customizeAndRetry,
+                                  Retry retry,
                                   Runnable onKeyExchanged) {
     this.registryAndScrape = registryAndScrape;
     this.onKeyExchanged = onKeyExchanged;
-    Counter attempts = Counter.builder("prometheus.connection.attempts")
-        .description("Attempts at making an outbound RSocket connection to the Prometheus proxy")
-        .baseUnit("attempts")
-        .register(registryAndScrape.registry);
-    attempts.increment();
 
-    this.connection = customizeAndRetry.apply(RSocketFactory.connect()
+    this.connection = RSocketFactory.connect()
+        .errorConsumer(t ->
+            Counter.builder("prometheus.connection.error")
+                .tag("exception", t.getClass().getName())
+                .register(registryAndScrape.registry)
+                .increment()
+        )
+        .reconnect(new Retry() {
+          @Override
+          public Publisher<?> generateCompanion(Flux<RetrySignal> retrySignals) {
+            return retry.generateCompanion(retrySignals
+                .doOnNext(retrySignal ->
+                    DistributionSummary.builder("prometheus.connection.retry")
+                        .description("Attempts at retrying an RSocket connection to the Prometheus proxy")
+                        .baseUnit("retries")
+                        .tag("exception", retrySignal.failure().getCause().getMessage())
+                        .register(registryAndScrape.registry)
+                        .record(retrySignal.totalRetries())
+                )
+            );
+          }
+        })
         .acceptor(r -> {
           this.sendingSocket = r;
           return rsocket;
         })
         .transport(transport)
         .start()
-        .doOnCancel(() -> {
-          if (pushOnDisconnect) {
-            PublicKey key = latestKey.get();
-            if (key != null) {
-              sendingSocket
-                  .fireAndForget(scrapePayload(key))
-                  .block(Duration.ofSeconds(10));
-            }
-          }
-        })
-        .flatMap(Closeable::onClose)
-        .repeat(() -> {
-          attempts.increment();
-          return true;
-        })
-    ).subscribe();
+        .subscribe();
   }
 
   /**
@@ -139,11 +146,17 @@ public class PrometheusRSocketClient {
   }
 
   public void close() {
+    this.requestedDisconnect = true;
     connection.dispose();
   }
 
   public void pushAndClose() {
-    this.pushOnDisconnect = true;
+    PublicKey key = latestKey.get();
+    if (key != null) {
+      sendingSocket
+          .fireAndForget(scrapePayload(key))
+          .block(Duration.ofSeconds(10));
+    }
     close();
   }
 
@@ -195,7 +208,9 @@ public class PrometheusRSocketClient {
     private MeterRegistryAndScrape<?> registryAndScrape;
     private final ClientTransport clientTransport;
 
-    private UnaryOperator<Flux<Void>> customizeAndRetry = c -> c.retryBackoff(Long.MAX_VALUE, Duration.ofSeconds(10), Duration.ofMinutes(10));
+    private Retry retry = Retry.backoff(Long.MAX_VALUE, Duration.ofSeconds(10))
+        .maxBackoff(Duration.ofMinutes(10));
+
     private Runnable onKeyExchanged = () -> {
     };
 
@@ -204,8 +219,8 @@ public class PrometheusRSocketClient {
       this.clientTransport = clientTransport;
     }
 
-    public Builder customizeAndRetry(UnaryOperator<Flux<Void>> customizeAndRetry) {
-      this.customizeAndRetry = customizeAndRetry;
+    public Builder retry(Retry retry) {
+      this.retry = retry;
       return this;
     }
 
@@ -215,7 +230,7 @@ public class PrometheusRSocketClient {
     }
 
     public PrometheusRSocketClient connect() {
-      return new PrometheusRSocketClient(registryAndScrape, clientTransport, customizeAndRetry, onKeyExchanged);
+      return new PrometheusRSocketClient(registryAndScrape, clientTransport, retry, onKeyExchanged);
     }
   }
 
@@ -231,5 +246,9 @@ public class PrometheusRSocketClient {
     String scrape() {
       return scrape.get();
     }
+  }
+
+  public Disposable getConnection() {
+    return connection;
   }
 }

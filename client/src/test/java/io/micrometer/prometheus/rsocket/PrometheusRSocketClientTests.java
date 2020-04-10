@@ -19,17 +19,22 @@ import io.micrometer.prometheus.PrometheusConfig;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.rsocket.AbstractRSocket;
 import io.rsocket.Payload;
+import io.rsocket.RSocket;
 import io.rsocket.RSocketFactory;
 import io.rsocket.frame.decoder.PayloadDecoder;
 import io.rsocket.transport.local.LocalServerTransport;
+import io.rsocket.transport.netty.client.TcpClientTransport;
 import io.rsocket.util.DefaultPayload;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Mono;
+import reactor.util.retry.Retry;
 
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
+import java.time.Duration;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -39,6 +44,61 @@ class PrometheusRSocketClientTests {
 
   PrometheusMeterRegistry meterRegistry = new PrometheusMeterRegistry(PrometheusConfig.DEFAULT);
 
+  @Test
+  void reconnection() throws InterruptedException {
+    CountDownLatch connectionLatch = new CountDownLatch(1);
+
+    RSocketFactory.receive()
+        .frameDecoder(PayloadDecoder.ZERO_COPY)
+        .acceptor((setup, sendingSocket) -> {
+          // the connection will be disposed before this is ever reached, triggering retries by the client
+          return Mono.empty();
+        })
+        .transport(serverTransport)
+        .start()
+        .subscribe(connection -> {
+          connection.dispose();
+          connectionLatch.countDown();
+        });
+
+    assertThat(connectionLatch.await(1, TimeUnit.SECONDS)).isTrue();
+
+    TcpClientTransport clientTransport = TcpClientTransport.create("localhost", 7103);
+
+    CountDownLatch reconnectionAttemptLatch = new CountDownLatch(3);
+
+    PrometheusRSocketClient.build(meterRegistry, clientTransport)
+        .retry(Retry.max(3).doAfterRetry(retry -> reconnectionAttemptLatch.countDown()))
+        .connect();
+
+    assertThat(reconnectionAttemptLatch.await(1, TimeUnit.SECONDS)).isTrue();
+    assertThat(meterRegistry.get("prometheus.connection.retry").summary().count()).isGreaterThanOrEqualTo(3);
+  }
+
+  @Test
+  void doesntAttemptReconnectWhenPushAndClose() throws InterruptedException {
+    CountDownLatch connectionLatch = new CountDownLatch(3);
+
+    RSocketFactory.receive()
+        .frameDecoder(PayloadDecoder.ZERO_COPY)
+        .acceptor((setup, sendingSocket) -> {
+          connectionLatch.countDown();
+          return Mono.empty();
+        })
+        .transport(serverTransport)
+        .start()
+        .block();
+
+    PrometheusRSocketClient client = PrometheusRSocketClient.build(meterRegistry, serverTransport.clientTransport())
+        .retry(Retry.max(3))
+        .connect();
+
+    client.pushAndClose();
+
+    assertThat(connectionLatch.await(1, TimeUnit.SECONDS)).isFalse();
+    assertThat(connectionLatch.getCount()).isEqualTo(2);
+  }
+
   /**
    * See https://github.com/micrometer-metrics/prometheus-rsocket-proxy/issues/3
    */
@@ -46,10 +106,13 @@ class PrometheusRSocketClientTests {
   void dyingScrapeAfterNormalScrape() throws NoSuchAlgorithmException, InterruptedException {
     CountDownLatch dyingScrapeLatch = new CountDownLatch(1);
     Payload payload = DefaultPayload.create(KeyPairGenerator.getInstance("RSA").generateKeyPair().getPublic().getEncoded());
+    AtomicReference<RSocket> serverSocket = new AtomicReference<>();
+
     RSocketFactory.receive()
         .frameDecoder(PayloadDecoder.ZERO_COPY)
         .acceptor((setup, sendingSocket) -> {
           // normal scrape
+          serverSocket.set(sendingSocket);
           sendingSocket.requestResponse(payload).subscribe();
 
           return Mono.just(new AbstractRSocket() {
@@ -75,15 +138,23 @@ class PrometheusRSocketClientTests {
             },
             serverTransport.clientTransport()
         )
-        .customizeAndRetry(voidFlux -> voidFlux)
+        .retry(Retry.max(0))
         .connect();
 
-    normalScrapeLatch.await(1, TimeUnit.SECONDS);
+    assertThat(normalScrapeLatch.await(1, TimeUnit.SECONDS)).isTrue();
 
     // trigger dying scrape
     client.pushAndClose();
     assertThat(dyingScrapeLatch.await(1, TimeUnit.SECONDS))
         .as("Dying scrape (fire-and-forget) should be successfully called")
         .isTrue();
+
+    // after pushAndClose(), the client should no longer be scrapable
+    Boolean failed = serverSocket.get().requestResponse(payload)
+        .map(response -> false)
+        .onErrorReturn(true)
+        .block(Duration.ofSeconds(10));
+
+    assertThat(failed).isNull();
   }
 }

@@ -4,17 +4,18 @@ plugins {
 
 repositories {
   mavenCentral()
+  maven { url 'http://oss.jfrog.org/oss-snapshot-local' }
 }
 
 dependencies {
-  api 'io.rsocket:rsocket-core:1.0.0-RC5'
+  api 'io.rsocket:rsocket-core:1.0.0-RC7-SNAPSHOT'
   api 'io.micrometer:micrometer-registry-prometheus:latest.release'
   implementation 'org.xerial.snappy:snappy-java:latest.release'
 
   testImplementation 'ch.qos.logback:logback-classic:1.2.3'
   testImplementation 'org.junit.jupiter:junit-jupiter:5.5.+'
-  testImplementation 'io.rsocket:rsocket-transport-netty:1.0.0-RC5'
-  testImplementation 'io.rsocket:rsocket-transport-local:1.0.0-RC5'
+  testImplementation 'io.rsocket:rsocket-transport-netty:1.0.0-RC7-SNAPSHOT'
+  testImplementation 'io.rsocket:rsocket-transport-local:1.0.0-RC7-SNAPSHOT'
   testImplementation 'org.assertj:assertj-core:latest.release'
 }
 

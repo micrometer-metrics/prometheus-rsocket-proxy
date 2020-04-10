@@ -65,12 +65,8 @@ class PrometheusController {
   private final Counter scrapeSocketsClosed;
   private final DistributionSummary scrapePayload;
   private final MicrometerRSocketInterceptor metricsInterceptor;
-  private PrometheusControllerProperties properties;
-
-  private Map<RSocket, ConnectionState> scrapableApps = new ConcurrentHashMap<>();
-
-  // keyed by the RSocket that listens for dying pushes, the value is the RSocket used for request/response scrapes.
-//  private Map<RSocket, RSocket> scrapableAppsByDyingPushListener = new ConcurrentHashMap<>();
+  private final PrometheusControllerProperties properties;
+  private final Map<RSocket, ConnectionState> scrapableApps = new ConcurrentHashMap<>();
 
   PrometheusController(PrometheusMeterRegistry meterRegistry, PrometheusControllerProperties properties) {
     this.meterRegistry = meterRegistry;
@@ -97,6 +93,13 @@ class PrometheusController {
     KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
 
     RSocketFactory.receive()
+        .errorConsumer(t ->
+          Counter.builder("prometheus.proxy.connection.error")
+            .tag("exception", t.getClass().getName())
+            .tag("transport", "TCP")
+            .register(meterRegistry)
+            .increment()
+        )
         .frameDecoder(PayloadDecoder.ZERO_COPY)
         .acceptor((setup, sendingSocket) -> acceptRSocket(generator, sendingSocket))
         .transport(TcpServerTransport.create(this.properties.getTcpPort()))
@@ -104,6 +107,13 @@ class PrometheusController {
         .subscribe();
 
     RSocketFactory.receive()
+        .errorConsumer(t ->
+            Counter.builder("prometheus.proxy.connection.error")
+                .tag("exception", t.getClass().getName())
+                .tag("transport", "Websocket")
+                .register(meterRegistry)
+                .increment()
+        )
         .frameDecoder(PayloadDecoder.ZERO_COPY)
         .acceptor((setup, sendingSocket) -> acceptRSocket(generator, sendingSocket))
         .transport(WebsocketServerTransport.create(this.properties.getWebsocketPort()))
