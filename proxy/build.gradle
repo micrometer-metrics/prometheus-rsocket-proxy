@@ -1,6 +1,6 @@
 plugins {
   id 'org.springframework.boot' version '2.2.6.RELEASE'
-  id 'com.bmuschko.docker-spring-boot-application' version '6.4.0'
+  id 'com.bmuschko.docker-spring-boot-application' version '5.0.0'
   id 'nebula.override' version '3.0.2'
 }
 
