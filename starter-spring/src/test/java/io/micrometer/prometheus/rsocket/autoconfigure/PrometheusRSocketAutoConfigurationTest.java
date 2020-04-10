@@ -37,7 +37,6 @@ import java.util.concurrent.TimeUnit;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class PrometheusRSocketAutoConfigurationTest {
-
   private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
       .withConfiguration(AutoConfigurations.of(MetricsAutoConfiguration.class, PrometheusMetricsExportAutoConfiguration.class, PrometheusRSocketAutoConfiguration.class));
 
@@ -45,14 +44,12 @@ class PrometheusRSocketAutoConfigurationTest {
     return RSocketFactory.receive()
         .acceptor((setup, sendingSocket) -> {
           latch.countDown();
-          final AbstractRSocket rsocket = new AbstractRSocket() {
-
+          return Mono.just(new AbstractRSocket() {
             @Override
             public Mono<Void> fireAndForget(Payload payload) {
               return Mono.empty();
             }
-          };
-          return Mono.just(rsocket);
+          });
         })
         .transport(serverTransport)
         .start();
@@ -61,11 +58,15 @@ class PrometheusRSocketAutoConfigurationTest {
   @Test
   void prometheusRSocketClientTcp() {
     int port = SocketUtils.findAvailableTcpPort();
-    final CountDownLatch latch = new CountDownLatch(1);
-    this.startServer(TcpServerTransport.create(port), latch)
-        .block();
-    this.contextRunner.withPropertyValues("management.metrics.export.prometheus.rsocket.port=" + port,
-        "management.metrics.export.prometheus.rsocket.transport=tcp")
+    CountDownLatch latch = new CountDownLatch(1);
+
+    startServer(TcpServerTransport.create(port), latch).block();
+
+    contextRunner
+        .withPropertyValues(
+            "management.metrics.export.prometheus.rsocket.port=" + port,
+            "management.metrics.export.prometheus.rsocket.transport=tcp"
+        )
         .run(context -> {
           latch.await(5, TimeUnit.SECONDS);
           assertThat(latch.getCount()).isEqualTo(0);
@@ -75,11 +76,15 @@ class PrometheusRSocketAutoConfigurationTest {
   @Test
   void prometheusRSocketClientWebsocket() {
     int port = SocketUtils.findAvailableTcpPort();
-    final CountDownLatch latch = new CountDownLatch(1);
-    this.startServer(WebsocketServerTransport.create(port), latch)
-        .block();
-    this.contextRunner.withPropertyValues("management.metrics.export.prometheus.rsocket.port=" + port,
-        "management.metrics.export.prometheus.rsocket.transport=websocket")
+    CountDownLatch latch = new CountDownLatch(1);
+
+    startServer(WebsocketServerTransport.create(port), latch).block();
+
+    contextRunner
+        .withPropertyValues(
+            "management.metrics.export.prometheus.rsocket.port=" + port,
+            "management.metrics.export.prometheus.rsocket.transport=websocket"
+        )
         .run(context -> {
           latch.await(5, TimeUnit.SECONDS);
           assertThat(latch.getCount()).isEqualTo(0);

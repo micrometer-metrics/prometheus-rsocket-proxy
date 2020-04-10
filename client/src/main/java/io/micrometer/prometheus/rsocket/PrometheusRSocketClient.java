@@ -45,6 +45,7 @@ import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /**
@@ -63,7 +64,6 @@ public class PrometheusRSocketClient {
     public Mono<Payload> requestResponse(Payload payload) {
       PublicKey key = decodePublicKey(payload.getData());
       latestKey.set(key);
-      onKeyExchanged.run();
 
       return requestedDisconnect ? Mono.empty() : Mono.just(scrapePayload(key));
     }
@@ -71,21 +71,18 @@ public class PrometheusRSocketClient {
     @Override
     public Mono<Void> fireAndForget(Payload payload) {
       latestKey.set(decodePublicKey(payload.getData()));
-      onKeyExchanged.run();
       return Mono.empty();
     }
   };
 
   private volatile boolean requestedDisconnect = false;
   private RSocket sendingSocket;
-  private Runnable onKeyExchanged;
 
   private PrometheusRSocketClient(MeterRegistryAndScrape<?> registryAndScrape,
                                   ClientTransport transport,
                                   Retry retry,
-                                  Runnable onKeyExchanged) {
+                                  Consumer<RSocket> onConnected) {
     this.registryAndScrape = registryAndScrape;
-    this.onKeyExchanged = onKeyExchanged;
 
     this.connection = RSocketFactory.connect()
         .errorConsumer(t ->
@@ -150,14 +147,14 @@ public class PrometheusRSocketClient {
     connection.dispose();
   }
 
-  public void pushAndClose() {
+  public Mono<Void> pushAndClose() {
     PublicKey key = latestKey.get();
     if (key != null) {
-      sendingSocket
+      return sendingSocket
           .fireAndForget(scrapePayload(key))
-          .block(Duration.ofSeconds(10));
+          .doOnTerminate(this::close);
     }
-    close();
+    return Mono.empty();
   }
 
   private Payload scrapePayload(@Nullable PublicKey publicKey) {
@@ -211,9 +208,6 @@ public class PrometheusRSocketClient {
     private Retry retry = Retry.backoff(Long.MAX_VALUE, Duration.ofSeconds(10))
         .maxBackoff(Duration.ofMinutes(10));
 
-    private Runnable onKeyExchanged = () -> {
-    };
-
     <M extends MeterRegistry> Builder(M registry, Supplier<String> scrape, ClientTransport clientTransport) {
       this.registryAndScrape = new MeterRegistryAndScrape<>(registry, scrape);
       this.clientTransport = clientTransport;
@@ -224,13 +218,12 @@ public class PrometheusRSocketClient {
       return this;
     }
 
-    public Builder onKeyExchanged(Runnable onKeyExchanged) {
-      this.onKeyExchanged = onKeyExchanged;
-      return this;
+    public PrometheusRSocketClient connect() {
+      return connect(rsocket -> { });
     }
 
-    public PrometheusRSocketClient connect() {
-      return new PrometheusRSocketClient(registryAndScrape, clientTransport, retry, onKeyExchanged);
+    public PrometheusRSocketClient connect(Consumer<RSocket> onConnected) {
+      return new PrometheusRSocketClient(registryAndScrape, clientTransport, retry, onConnected);
     }
   }
 

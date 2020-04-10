@@ -19,7 +19,6 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.prometheus.PrometheusConfig;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.rsocket.transport.netty.client.WebsocketClientTransport;
-import reactor.core.publisher.Flux;
 
 import java.lang.management.ManagementFactory;
 import java.time.Duration;
@@ -32,21 +31,21 @@ public class SampleClientThatClosesManually {
     PrometheusMeterRegistry meterRegistry = new PrometheusMeterRegistry(PrometheusConfig.DEFAULT);
     meterRegistry.config().commonTags("process.id", ManagementFactory.getRuntimeMXBean().getName());
 
-    CountDownLatch keyExchanges = new CountDownLatch(1);
+    CountDownLatch connectionLatch = new CountDownLatch(1);
 
     PrometheusRSocketClient client = PrometheusRSocketClient
         .build(meterRegistry, WebsocketClientTransport.create("localhost", 8081))
-        .onKeyExchanged(keyExchanges::countDown)
-        .connect();
+        .connect(rsocket -> connectionLatch.countDown());
 
     Random r = new Random();
 
     Counter counter = meterRegistry.counter("my.counter", "instance", Integer.toString(r.nextInt(10)));
     counter.increment();
 
-    keyExchanges.await(10, TimeUnit.SECONDS);
-    client.pushAndClose();
+    if (!connectionLatch.await(10, TimeUnit.SECONDS)) {
+      throw new IllegalStateException("Not able to connect within 10 seconds");
+    }
 
-    Flux.interval(Duration.ofSeconds(1)).blockLast();
+    client.pushAndClose().block(Duration.ofSeconds(1));
   }
 }

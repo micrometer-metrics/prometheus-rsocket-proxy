@@ -13,7 +13,7 @@ repositories {
 
 dependencyManagement {
   imports {
-    mavenBom 'org.springframework.boot:spring-boot-dependencies:2.2.4.RELEASE'
+    mavenBom 'org.springframework.boot:spring-boot-dependencies:2.2.6.RELEASE'
   }
 }
 
@@ -22,8 +22,8 @@ dependencies {
   implementation 'org.springframework.boot:spring-boot-actuator-autoconfigure'
   implementation project(':prometheus-rsocket-client')
 
+  implementation 'io.rsocket:rsocket-core:1.0.0-RC7-SNAPSHOT'
   implementation 'io.rsocket:rsocket-transport-netty:1.0.0-RC7-SNAPSHOT'
-  implementation 'io.projectreactor:reactor-core:3.3.4.RELEASE'
 
   annotationProcessor 'org.springframework.boot:spring-boot-autoconfigure-processor'
 
