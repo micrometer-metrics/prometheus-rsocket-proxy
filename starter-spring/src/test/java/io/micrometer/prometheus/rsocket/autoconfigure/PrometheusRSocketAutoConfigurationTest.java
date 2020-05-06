@@ -18,7 +18,8 @@ package io.micrometer.prometheus.rsocket.autoconfigure;
 
 import io.rsocket.AbstractRSocket;
 import io.rsocket.Payload;
-import io.rsocket.RSocketFactory;
+import io.rsocket.core.RSocketServer;
+import io.rsocket.frame.decoder.PayloadDecoder;
 import io.rsocket.transport.ServerTransport;
 import io.rsocket.transport.netty.server.CloseableChannel;
 import io.rsocket.transport.netty.server.TcpServerTransport;
@@ -38,10 +39,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class PrometheusRSocketAutoConfigurationTest {
   private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
-      .withConfiguration(AutoConfigurations.of(MetricsAutoConfiguration.class, PrometheusMetricsExportAutoConfiguration.class, PrometheusRSocketAutoConfiguration.class));
+      .withConfiguration(AutoConfigurations.of(
+          MetricsAutoConfiguration.class,
+          PrometheusMetricsExportAutoConfiguration.class,
+          PrometheusRSocketAutoConfiguration.class
+      ));
 
   private Mono<CloseableChannel> startServer(ServerTransport<CloseableChannel> serverTransport, CountDownLatch latch) {
-    return RSocketFactory.receive()
+    return RSocketServer.create()
+        .payloadDecoder(PayloadDecoder.ZERO_COPY)
         .acceptor((setup, sendingSocket) -> {
           latch.countDown();
           return Mono.just(new AbstractRSocket() {
@@ -51,8 +57,7 @@ class PrometheusRSocketAutoConfigurationTest {
             }
           });
         })
-        .transport(serverTransport)
-        .start();
+        .bind(serverTransport);
   }
 
   @Test

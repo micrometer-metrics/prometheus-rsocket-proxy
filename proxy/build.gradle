@@ -8,7 +8,6 @@ apply plugin: 'io.spring.dependency-management'
 
 repositories {
   mavenCentral()
-  maven { url 'http://oss.jfrog.org/oss-snapshot-local' }
 }
 
 publishing {
@@ -27,8 +26,9 @@ dependencies {
   implementation 'org.springframework.boot:spring-boot-starter-webflux'
   implementation 'io.micrometer:micrometer-registry-prometheus'
 
-  implementation 'io.rsocket:rsocket-micrometer:1.0.0-RC7-SNAPSHOT'
-  implementation 'io.rsocket:rsocket-transport-netty:1.0.0-RC7-SNAPSHOT'
+  implementation 'io.rsocket:rsocket-micrometer:1.0.0-RC7'
+  implementation 'io.rsocket:rsocket-transport-netty:1.0.0-RC7'
+  implementation 'io.rsocket:rsocket-core:1.0.0-RC7'
 
   implementation 'org.xerial.snappy:snappy-java:latest.release'
   annotationProcessor "org.springframework.boot:spring-boot-configuration-processor"

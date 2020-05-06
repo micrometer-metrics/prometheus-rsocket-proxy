@@ -23,11 +23,12 @@ import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.rsocket.AbstractRSocket;
 import io.rsocket.Payload;
 import io.rsocket.RSocket;
-import io.rsocket.RSocketFactory;
+import io.rsocket.core.RSocketConnector;
 import io.rsocket.transport.ClientTransport;
 import io.rsocket.util.DefaultPayload;
 import org.reactivestreams.Publisher;
 import org.xerial.snappy.Snappy;
+import reactor.core.Exceptions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.retry.Retry;
@@ -66,13 +67,7 @@ public class PrometheusRSocketClient {
                                   Runnable onKeyReceived) {
     this.registryAndScrape = registryAndScrape;
 
-    RSocketFactory.connect()
-        .errorConsumer(t ->
-            Counter.builder("prometheus.connection.error")
-                .tag("exception", t.getClass().getName())
-                .register(registryAndScrape.registry)
-                .increment()
-        )
+    RSocketConnector.create()
         .reconnect(new Retry() {
           @Override
           public Publisher<?> generateCompanion(Flux<RetrySignal> retrySignals) {
@@ -90,9 +85,9 @@ public class PrometheusRSocketClient {
             );
           }
         })
-        .acceptor(r -> {
+        .acceptor((payload, r) -> {
           this.sendingSocket = r;
-          return new AbstractRSocket() {
+          return Mono.just(new AbstractRSocket() {
             @Override
             public Mono<Payload> requestResponse(Payload payload) {
               PublicKey key = decodePublicKey(payload.getData());
@@ -107,12 +102,19 @@ public class PrometheusRSocketClient {
               onKeyReceived.run();
               return Mono.empty();
             }
-          };
+          });
         })
-        .transport(transport)
-        .start()
+        .connect(transport)
+        .doOnError(t -> {
+          Counter.builder("prometheus.connection.error")
+              .tag("exception", t.getClass().getName())
+              .register(registryAndScrape.registry)
+              .increment();
+        })
         .doOnNext(connection -> this.connection = connection)
-        .flatMap(RSocket::onClose)
+        .flatMap(socket -> socket.onClose()
+          .map(v -> 1) // https://github.com/rsocket/rsocket-java/issues/819
+          .onErrorReturn(1))
         .repeat(() -> !requestedDisconnect)
         .subscribe();
   }

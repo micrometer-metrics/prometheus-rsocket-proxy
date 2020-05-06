@@ -2,6 +2,7 @@
   "annotations": {
     "list": [
       {
+        "$$hashKey": "object:35",
         "builtIn": 1,
         "datasource": "-- Grafana --",
         "enable": true,
@@ -15,7 +16,6 @@
   "editable": true,
   "gnetId": null,
   "graphTooltip": 0,
-  "id": 26,
   "links": [],
   "panels": [
     {
@@ -523,16 +523,16 @@
       }
     }
   ],
-  "refresh": false,
-  "schemaVersion": 21,
+  "refresh": "10s",
+  "schemaVersion": 22,
   "style": "dark",
   "tags": [],
   "templating": {
     "list": []
   },
   "time": {
-    "from": "2020-04-08T22:28:38.562Z",
-    "to": "2020-04-08T22:31:22.858Z"
+    "from": "now-15m",
+    "to": "now"
   },
   "timepicker": {
     "refresh_intervals": [
@@ -551,5 +551,8 @@
   "timezone": "",
   "title": "Prometheus Proxy",
   "uid": "5sancpjZk",
-  "version": 21
+  "variables": {
+    "list": []
+  },
+  "version": 1
 }

@@ -5,10 +5,6 @@ plugins {
 
 repositories {
   mavenCentral()
-  // Needed because rsocket imports the reactor-bom Dysprosium still in milestones
-  maven { url 'https://repo.spring.io/milestone' }
-
-  maven { url 'http://oss.jfrog.org/oss-snapshot-local' }
 }
 
 dependencyManagement {
@@ -19,11 +15,13 @@ dependencyManagement {
 
 dependencies {
   api 'io.micrometer:micrometer-registry-prometheus'
+  implementation 'io.micrometer:micrometer-core:latest.release'
+
   implementation 'org.springframework.boot:spring-boot-actuator-autoconfigure'
   implementation project(':prometheus-rsocket-client')
 
-  implementation 'io.rsocket:rsocket-core:1.0.0-RC7-SNAPSHOT'
-  implementation 'io.rsocket:rsocket-transport-netty:1.0.0-RC7-SNAPSHOT'
+  implementation 'io.rsocket:rsocket-core:1.0.0-RC7'
+  implementation 'io.rsocket:rsocket-transport-netty:1.0.0-RC7'
 
   annotationProcessor 'org.springframework.boot:spring-boot-autoconfigure-processor'
 

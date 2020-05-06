@@ -20,7 +20,7 @@ import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.rsocket.AbstractRSocket;
 import io.rsocket.Payload;
 import io.rsocket.RSocket;
-import io.rsocket.RSocketFactory;
+import io.rsocket.core.RSocketServer;
 import io.rsocket.frame.decoder.PayloadDecoder;
 import io.rsocket.transport.local.LocalClientTransport;
 import io.rsocket.transport.local.LocalServerTransport;
@@ -68,14 +68,13 @@ class PrometheusRSocketClientTests {
   void doesntAttemptReconnectWhenPushAndClose() throws InterruptedException {
     CountDownLatch connectionLatch = new CountDownLatch(3);
 
-    RSocketFactory.receive()
-        .frameDecoder(PayloadDecoder.ZERO_COPY)
+    RSocketServer.create()
+        .payloadDecoder(PayloadDecoder.ZERO_COPY)
         .acceptor((setup, sendingSocket) -> {
           connectionLatch.countDown();
           return Mono.empty();
         })
-        .transport(serverTransport)
-        .start()
+        .bind(serverTransport)
         .block();
 
     PrometheusRSocketClient client = PrometheusRSocketClient.build(meterRegistry, serverTransport.clientTransport())
@@ -97,8 +96,8 @@ class PrometheusRSocketClientTests {
     Payload payload = DefaultPayload.create(KeyPairGenerator.getInstance("RSA").generateKeyPair().getPublic().getEncoded());
     AtomicReference<RSocket> serverSocket = new AtomicReference<>();
 
-    RSocketFactory.receive()
-        .frameDecoder(PayloadDecoder.ZERO_COPY)
+    RSocketServer.create()
+        .payloadDecoder(PayloadDecoder.ZERO_COPY)
         .acceptor((setup, sendingSocket) -> {
           // normal scrape
           serverSocket.set(sendingSocket);
@@ -112,8 +111,7 @@ class PrometheusRSocketClientTests {
             }
           });
         })
-        .transport(serverTransport)
-        .start()
+        .bind(serverTransport)
         .block();
 
     CountDownLatch normalScrapeLatch = new CountDownLatch(1);

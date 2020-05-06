@@ -22,12 +22,13 @@ import io.micrometer.core.instrument.Timer;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
-import io.rsocket.AbstractRSocket;
-import io.rsocket.Payload;
-import io.rsocket.RSocket;
-import io.rsocket.RSocketFactory;
+import io.rsocket.*;
+import io.rsocket.core.RSocketServer;
 import io.rsocket.frame.decoder.PayloadDecoder;
 import io.rsocket.micrometer.MicrometerRSocketInterceptor;
+import io.rsocket.plugins.DuplexConnectionInterceptor;
+import io.rsocket.plugins.RSocketInterceptor;
+import io.rsocket.plugins.SocketAcceptorInterceptor;
 import io.rsocket.transport.netty.server.TcpServerTransport;
 import io.rsocket.transport.netty.server.WebsocketServerTransport;
 import io.rsocket.util.DefaultPayload;
@@ -90,32 +91,30 @@ class PrometheusController {
   public void connect() throws NoSuchAlgorithmException {
     KeyPairGenerator generator = KeyPairGenerator.getInstance("RSA");
 
-    RSocketFactory.receive()
-        .errorConsumer(t ->
-            Counter.builder("prometheus.proxy.connection.error")
-                .tag("exception", t.getClass().getName())
-                .tag("transport", "TCP")
-                .register(meterRegistry)
-                .increment()
-        )
-        .frameDecoder(PayloadDecoder.ZERO_COPY)
+    RSocketServer.create()
+        .payloadDecoder(PayloadDecoder.ZERO_COPY)
         .acceptor((setup, sendingSocket) -> acceptRSocket(generator, sendingSocket))
-        .transport(TcpServerTransport.create(this.properties.getTcpPort()))
-        .start()
+        .bind(TcpServerTransport.create(this.properties.getTcpPort()))
+        .doOnError(t -> {
+          Counter.builder("prometheus.proxy.connection.error")
+              .tag("exception", t.getClass().getName())
+              .tag("transport", "TCP")
+              .register(meterRegistry)
+              .increment();
+        })
         .subscribe();
 
-    RSocketFactory.receive()
-        .errorConsumer(t ->
-            Counter.builder("prometheus.proxy.connection.error")
-                .tag("exception", t.getClass().getName())
-                .tag("transport", "Websocket")
-                .register(meterRegistry)
-                .increment()
-        )
-        .frameDecoder(PayloadDecoder.ZERO_COPY)
+    RSocketServer.create()
+        .payloadDecoder(PayloadDecoder.ZERO_COPY)
         .acceptor((setup, sendingSocket) -> acceptRSocket(generator, sendingSocket))
-        .transport(WebsocketServerTransport.create(this.properties.getWebsocketPort()))
-        .start()
+        .bind(WebsocketServerTransport.create(this.properties.getWebsocketPort()))
+        .doOnError(t -> {
+          Counter.builder("prometheus.proxy.connection.error")
+              .tag("exception", t.getClass().getName())
+              .tag("transport", "Websocket")
+              .register(meterRegistry)
+              .increment();
+        })
         .subscribe();
   }
 

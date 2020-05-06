@@ -21,7 +21,7 @@ spec:
         runAsUser: 1000
       containers:
         - name: prometheus
-          image: prom/prometheus:v2.9.2
+          image: prom/prometheus:v2.18.0
           args:
             - "--config.file=/etc/prometheus/prometheus.yml"
             - "--storage.tsdb.path=/prometheus/"
