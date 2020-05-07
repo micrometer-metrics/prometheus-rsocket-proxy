@@ -28,7 +28,6 @@ import io.rsocket.transport.ClientTransport;
 import io.rsocket.util.DefaultPayload;
 import org.reactivestreams.Publisher;
 import org.xerial.snappy.Snappy;
-import reactor.core.Exceptions;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.util.retry.Retry;
@@ -105,12 +104,11 @@ public class PrometheusRSocketClient {
           });
         })
         .connect(transport)
-        .doOnError(t -> {
-          Counter.builder("prometheus.connection.error")
-              .tag("exception", t.getClass().getName())
-              .register(registryAndScrape.registry)
-              .increment();
-        })
+        .doOnError(t -> Counter.builder("prometheus.connection.error")
+            .baseUnit("errors")
+            .tag("exception", t.getClass().getSimpleName() == null ? t.getClass().getName() : t.getClass().getSimpleName())
+            .register(registryAndScrape.registry)
+            .increment())
         .doOnNext(connection -> this.connection = connection)
         .flatMap(socket -> socket.onClose()
           .map(v -> 1) // https://github.com/rsocket/rsocket-java/issues/819
