@@ -14,7 +14,7 @@ dependencyManagement {
 }
 
 dependencies {
-  api 'io.micrometer:micrometer-registry-prometheus'
+  api 'io.micrometer:micrometer-registry-prometheus:latest.release'
   implementation 'io.micrometer:micrometer-core:latest.release'
 
   implementation 'org.springframework.boot:spring-boot-actuator-autoconfigure'
