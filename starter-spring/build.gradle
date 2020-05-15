@@ -9,19 +9,18 @@ repositories {
 
 dependencyManagement {
   imports {
-    mavenBom 'org.springframework.boot:spring-boot-dependencies:2.2.6.RELEASE'
+    mavenBom 'org.springframework.boot:spring-boot-dependencies:2.3.0.RELEASE'
   }
 }
 
 dependencies {
-  api 'io.micrometer:micrometer-registry-prometheus:latest.release'
-  implementation 'io.micrometer:micrometer-core:latest.release'
+  api 'io.micrometer:micrometer-registry-prometheus'
 
   implementation 'org.springframework.boot:spring-boot-actuator-autoconfigure'
+  implementation 'org.springframework.boot:spring-boot-autoconfigure'
   implementation project(':prometheus-rsocket-client')
 
-  implementation 'io.rsocket:rsocket-core:1.0.0-RC7'
-  implementation 'io.rsocket:rsocket-transport-netty:1.0.0-RC7'
+  implementation 'io.rsocket:rsocket-transport-netty:1.0.0'
 
   annotationProcessor 'org.springframework.boot:spring-boot-autoconfigure-processor'
 
