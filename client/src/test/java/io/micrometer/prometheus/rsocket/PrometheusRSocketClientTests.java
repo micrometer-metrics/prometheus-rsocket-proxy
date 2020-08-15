@@ -50,7 +50,7 @@ class PrometheusRSocketClientTests {
     serverTransport.start(connection -> {
       connection.dispose();
       return Mono.empty();
-    }, 0);
+    });
 
     LocalClientTransport local = LocalClientTransport.create("local");
 
