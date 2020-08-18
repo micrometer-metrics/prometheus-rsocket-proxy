@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Pivotal Software, Inc.
+ * Copyright 2020 Pivotal Software, Inc.
  * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,16 +13,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.micrometer.prometheus.rsocket;
+package io.micrometer.prometheus.proxy.server;
 
-import io.micrometer.prometheus.proxy.server.EnablePrometheusRSocketProxyServer;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Import;
 
-@SpringBootApplication
-@EnablePrometheusRSocketProxyServer
-public class PrometheusRSocketProxyMain {
-  public static void main(String[] args) {
-    SpringApplication.run(PrometheusRSocketProxyMain.class, args);
-  }
+import java.lang.annotation.*;
+
+/**
+ * Annotation to activate Prometheus RSocket Proxy Server related configuration.
+ * {@link PrometheusControllerProperties}
+ *
+ * @author Scott Steele
+ * @author Doug Saus
+ */
+
+@Target(ElementType.TYPE)
+@Retention(RetentionPolicy.RUNTIME)
+@Documented
+@Import(PrometheusRSocketProxyServerMarkerConfiguration.class)
+public @interface EnablePrometheusRSocketProxyServer {
+
 }

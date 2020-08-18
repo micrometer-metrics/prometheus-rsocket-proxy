@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.micrometer.prometheus.rsocket;
+package io.micrometer.prometheus.proxy.server;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
@@ -34,7 +34,7 @@ public class PrometheusControllerProperties {
   private int websocketPort = 8081;
 
   public int getTcpPort() {
-    return tcpPort;
+    return this.tcpPort;
   }
 
   public void setTcpPort(int tcpPort) {
@@ -42,7 +42,7 @@ public class PrometheusControllerProperties {
   }
 
   public int getWebsocketPort() {
-    return websocketPort;
+    return this.websocketPort;
   }
 
   public void setWebsocketPort(int websocketPort) {
