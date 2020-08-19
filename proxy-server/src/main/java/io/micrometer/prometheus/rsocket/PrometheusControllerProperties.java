@@ -34,7 +34,7 @@ public class PrometheusControllerProperties {
   private int websocketPort = 8081;
 
   public int getTcpPort() {
-    return this.tcpPort;
+    return tcpPort;
   }
 
   public void setTcpPort(int tcpPort) {
@@ -42,7 +42,7 @@ public class PrometheusControllerProperties {
   }
 
   public int getWebsocketPort() {
-    return this.websocketPort;
+    return websocketPort;
   }
 
   public void setWebsocketPort(int websocketPort) {

@@ -27,7 +27,6 @@ import java.lang.annotation.*;
  * @author Scott Steele
  * @author Doug Saus
  */
-
 @Target(ElementType.TYPE)
 @Retention(RetentionPolicy.RUNTIME)
 @Documented

@@ -18,6 +18,12 @@ package io.micrometer.prometheus.rsocket.autoconfigure;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+/**
+ * A configuration class that supplies a marker bean used to trigger {@link PrometheusRSocketClientAutoConfiguration}.
+ *
+ * @author Scott Steele
+ * @author Doug Saus
+ */
 @Configuration(proxyBeanMethods = false)
 class PrometheusRSocketProxyServerMarkerConfiguration {
 

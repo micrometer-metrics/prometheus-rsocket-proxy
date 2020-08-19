@@ -26,6 +26,15 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
 
+/**
+ * Conditionally creates a {@link PrometheusController} bean if one does not already exist.
+ * Creation is dependent on the presence of {@link PrometheusRSocketProxyServerMarkerConfiguration.Marker}
+ * and {@link PrometheusMeterRegistry} beans. The marker can be created through the use of the
+ * {@link EnablePrometheusRSocketProxyServer} annotation.
+ *
+ * @author Scott Steele
+ * @author Doug Saus
+ */
 @Configuration(proxyBeanMethods = false)
 @ConditionalOnClass(PrometheusMeterRegistry.class)
 @ConditionalOnBean(PrometheusRSocketProxyServerMarkerConfiguration.Marker.class)
