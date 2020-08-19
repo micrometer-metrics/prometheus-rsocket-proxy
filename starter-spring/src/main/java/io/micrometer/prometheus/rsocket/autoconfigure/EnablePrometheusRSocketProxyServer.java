@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.micrometer.prometheus.proxy.server;
+package io.micrometer.prometheus.rsocket.autoconfigure;
 
 import org.springframework.context.annotation.Import;
 
@@ -21,7 +21,7 @@ import java.lang.annotation.*;
 
 /**
  * Annotation to activate Prometheus RSocket Proxy Server related configuration.
- * {@link PrometheusControllerProperties}
+ * {@link io.micrometer.prometheus.proxy.server.PrometheusController}
  *
  * @author Scott Steele
  * @author Doug Saus

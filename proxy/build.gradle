@@ -25,7 +25,7 @@ dependencies {
   implementation 'org.springframework.boot:spring-boot-starter-actuator'
   implementation 'org.springframework.boot:spring-boot-starter-webflux'
   implementation 'io.micrometer:micrometer-registry-prometheus'
-  implementation project(':prometheus-rsocket-proxy-server')
+  implementation project(':prometheus-rsocket-spring')
 
   implementation 'io.rsocket:rsocket-micrometer:1.0.2'
   implementation 'io.rsocket:rsocket-transport-netty:1.0.2'

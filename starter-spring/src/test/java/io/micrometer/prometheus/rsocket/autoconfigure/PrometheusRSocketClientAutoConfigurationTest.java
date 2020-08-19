@@ -37,12 +37,12 @@ import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
-class PrometheusRSocketAutoConfigurationTest {
+class PrometheusRSocketClientAutoConfigurationTest {
   private final ApplicationContextRunner contextRunner = new ApplicationContextRunner()
       .withConfiguration(AutoConfigurations.of(
           MetricsAutoConfiguration.class,
           PrometheusMetricsExportAutoConfiguration.class,
-          PrometheusRSocketAutoConfiguration.class
+          PrometheusRSocketClientAutoConfiguration.class
       ));
 
   private Mono<CloseableChannel> startServer(ServerTransport<CloseableChannel> serverTransport, CountDownLatch latch) {

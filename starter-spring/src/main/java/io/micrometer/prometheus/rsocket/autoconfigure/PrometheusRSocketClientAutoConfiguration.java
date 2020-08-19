@@ -35,8 +35,8 @@ import reactor.util.retry.Retry;
 @AutoConfigureAfter(PrometheusMetricsExportAutoConfiguration.class)
 @ConditionalOnClass(PrometheusMeterRegistry.class)
 @ConditionalOnProperty(prefix = "management.metrics.export.prometheus.rsocket", name = "enabled", havingValue = "true", matchIfMissing = true)
-@EnableConfigurationProperties(PrometheusRSocketProperties.class)
-public class PrometheusRSocketAutoConfiguration {
+@EnableConfigurationProperties(PrometheusRSocketClientProperties.class)
+public class PrometheusRSocketClientAutoConfiguration {
 
   @ConditionalOnMissingBean
   @Bean
@@ -64,7 +64,7 @@ public class PrometheusRSocketAutoConfiguration {
 
   @ConditionalOnMissingBean
   @Bean(destroyMethod = "pushAndClose")
-  PrometheusRSocketClient prometheusRSocketClient(PrometheusMeterRegistry meterRegistry, PrometheusRSocketProperties properties) {
+  PrometheusRSocketClient prometheusRSocketClient(PrometheusMeterRegistry meterRegistry, PrometheusRSocketClientProperties properties) {
     return PrometheusRSocketClient.build(meterRegistry, properties.createClientTransport())
         .retry(Retry.backoff(properties.getMaxRetries(), properties.getFirstBackoff())
             .maxBackoff(properties.getMaxBackoff()))

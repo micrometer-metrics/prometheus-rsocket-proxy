@@ -15,7 +15,7 @@
  */
 package io.micrometer.prometheus.rsocket;
 
-import io.micrometer.prometheus.proxy.server.EnablePrometheusRSocketProxyServer;
+import io.micrometer.prometheus.rsocket.autoconfigure.EnablePrometheusRSocketProxyServer;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
