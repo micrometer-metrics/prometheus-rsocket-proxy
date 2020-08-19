@@ -15,13 +15,14 @@
  */
 package io.micrometer.prometheus.rsocket.autoconfigure;
 
+import io.micrometer.prometheus.rsocket.PrometheusController;
 import org.springframework.context.annotation.Import;
 
 import java.lang.annotation.*;
 
 /**
  * Annotation to activate Prometheus RSocket Proxy Server related configuration.
- * {@link io.micrometer.prometheus.proxy.server.PrometheusController}
+ * {@link PrometheusController}
  *
  * @author Scott Steele
  * @author Doug Saus
