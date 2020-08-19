@@ -15,12 +15,9 @@
  */
 package io.micrometer.prometheus.rsocket.autoconfigure;
 
-import io.micrometer.core.instrument.Clock;
-import io.micrometer.prometheus.PrometheusConfig;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.micrometer.prometheus.proxy.server.PrometheusController;
 import io.micrometer.prometheus.proxy.server.PrometheusControllerProperties;
-import io.prometheus.client.CollectorRegistry;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -35,30 +32,6 @@ import org.springframework.context.annotation.Lazy;
 @EnableConfigurationProperties(PrometheusControllerProperties.class)
 @Lazy(value = false)
 class PrometheusRSocketProxyServerAutoConfiguration {
-
-  @ConditionalOnMissingBean
-  @Bean
-  Clock micrometerClock() {
-    return Clock.SYSTEM;
-  }
-
-  @ConditionalOnMissingBean
-  @Bean
-  PrometheusConfig prometheusConfig() {
-    return PrometheusConfig.DEFAULT;
-  }
-
-  @ConditionalOnMissingBean
-  @Bean
-  CollectorRegistry prometheusCollectorRegistry() {
-    return new CollectorRegistry(true);
-  }
-
-  @ConditionalOnMissingBean
-  @Bean
-  PrometheusMeterRegistry prometheusMeterRegistry(PrometheusConfig config, CollectorRegistry collectorRegistry, Clock clock) {
-    return new PrometheusMeterRegistry(config, collectorRegistry, clock);
-  }
 
   @ConditionalOnMissingBean
   @Bean

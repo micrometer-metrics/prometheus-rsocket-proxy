@@ -16,11 +16,8 @@
 
 package io.micrometer.prometheus.rsocket.autoconfigure;
 
-import io.micrometer.core.instrument.Clock;
-import io.micrometer.prometheus.PrometheusConfig;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.micrometer.prometheus.rsocket.PrometheusRSocketClient;
-import io.prometheus.client.CollectorRegistry;
 import org.springframework.boot.actuate.autoconfigure.metrics.export.prometheus.PrometheusMetricsExportAutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -37,30 +34,6 @@ import reactor.util.retry.Retry;
 @ConditionalOnProperty(prefix = "management.metrics.export.prometheus.rsocket", name = "enabled", havingValue = "true", matchIfMissing = true)
 @EnableConfigurationProperties(PrometheusRSocketClientProperties.class)
 public class PrometheusRSocketClientAutoConfiguration {
-
-  @ConditionalOnMissingBean
-  @Bean
-  Clock micrometerClock() {
-    return Clock.SYSTEM;
-  }
-
-  @ConditionalOnMissingBean
-  @Bean
-  PrometheusConfig prometheusConfig() {
-    return PrometheusConfig.DEFAULT;
-  }
-
-  @ConditionalOnMissingBean
-  @Bean
-  CollectorRegistry prometheusCollectorRegistry() {
-    return new CollectorRegistry(true);
-  }
-
-  @ConditionalOnMissingBean
-  @Bean
-  PrometheusMeterRegistry prometheusMeterRegistry(PrometheusConfig config, CollectorRegistry collectorRegistry, Clock clock) {
-    return new PrometheusMeterRegistry(config, collectorRegistry, clock);
-  }
 
   @ConditionalOnMissingBean
   @Bean(destroyMethod = "pushAndClose")
