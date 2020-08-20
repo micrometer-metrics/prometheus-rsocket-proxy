@@ -1,2 +1,3 @@
 org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
-io.micrometer.prometheus.rsocket.autoconfigure.PrometheusRSocketAutoConfiguration
+io.micrometer.prometheus.rsocket.autoconfigure.PrometheusRSocketClientAutoConfiguration,\
+io.micrometer.prometheus.rsocket.autoconfigure.PrometheusRSocketProxyServerAutoConfiguration

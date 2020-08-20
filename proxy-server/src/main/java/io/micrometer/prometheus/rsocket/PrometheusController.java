@@ -58,7 +58,7 @@ import java.util.stream.Collectors;
  * @author Christian Tzolov
  */
 @RestController
-class PrometheusController {
+public class PrometheusController {
   private final PrometheusMeterRegistry meterRegistry;
   private final Timer scrapeTimerSuccess;
   private final Timer scrapeTimerClosed;
@@ -67,12 +67,11 @@ class PrometheusController {
   private final PrometheusControllerProperties properties;
   private final Map<RSocket, ConnectionState> scrapableApps = new ConcurrentHashMap<>();
 
-  PrometheusController(PrometheusMeterRegistry meterRegistry, PrometheusControllerProperties properties) {
+  public PrometheusController(PrometheusMeterRegistry meterRegistry, PrometheusControllerProperties properties) {
     this.meterRegistry = meterRegistry;
     this.metricsInterceptor = new MicrometerRSocketInterceptor(meterRegistry);
     this.properties = properties;
     meterRegistry.gaugeMapSize("prometheus.proxy.scrape.active.connections", Tags.empty(), scrapableApps);
-
     this.scrapeTimerSuccess = Timer.builder("prometheus.proxy.scrape")
         .tag("outcome", "success")
         .tag("exception", "none")

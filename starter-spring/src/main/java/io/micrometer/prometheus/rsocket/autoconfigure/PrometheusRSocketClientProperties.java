@@ -26,7 +26,7 @@ import reactor.netty.tcp.TcpClient;
 import java.time.Duration;
 
 @ConfigurationProperties("management.metrics.export.prometheus.rsocket")
-public class PrometheusRSocketProperties {
+public class PrometheusRSocketClientProperties {
 
   /**
    * The host name of the proxy to connect to.

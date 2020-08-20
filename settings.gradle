@@ -21,5 +21,9 @@ project(':prometheus-rsocket-proxy').projectDir = new File(rootProject.projectDi
 include 'prometheus-rsocket-client'
 project(':prometheus-rsocket-client').projectDir = new File(rootProject.projectDir, 'client')
 
+include 'prometheus-rsocket-proxy-server'
+project(':prometheus-rsocket-proxy-server').projectDir = new File(rootProject.projectDir, 'proxy-server')
+
 include 'prometheus-rsocket-spring'
 project(':prometheus-rsocket-spring').projectDir = new File(rootProject.projectDir, 'starter-spring')
+

@@ -19,6 +19,7 @@ dependencies {
   implementation 'org.springframework.boot:spring-boot-actuator-autoconfigure'
   implementation 'org.springframework.boot:spring-boot-autoconfigure'
   implementation project(':prometheus-rsocket-client')
+  implementation project(':prometheus-rsocket-proxy-server')
 
   implementation 'io.rsocket:rsocket-transport-netty:1.0.2'
 
