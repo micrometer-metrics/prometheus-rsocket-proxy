@@ -16,10 +16,11 @@
 package io.micrometer.prometheus.rsocket;
 
 import io.micrometer.prometheus.rsocket.autoconfigure.EnablePrometheusRSocketProxyServer;
+import io.micrometer.prometheus.rsocket.autoconfigure.PrometheusRSocketClientAutoConfiguration;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-@SpringBootApplication
+@SpringBootApplication(exclude = PrometheusRSocketClientAutoConfiguration.class)
 @EnablePrometheusRSocketProxyServer
 public class PrometheusRSocketProxyMain {
   public static void main(String[] args) {
