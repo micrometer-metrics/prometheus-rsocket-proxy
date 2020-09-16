@@ -28,7 +28,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import reactor.util.retry.Retry;
 
-@Configuration
+@Configuration(proxyBeanMethods = false)
 @AutoConfigureAfter(PrometheusMetricsExportAutoConfiguration.class)
 @ConditionalOnBean(PrometheusMeterRegistry.class)
 @ConditionalOnProperty(prefix = "management.metrics.export.prometheus.rsocket", name = "enabled", havingValue = "true", matchIfMissing = true)
