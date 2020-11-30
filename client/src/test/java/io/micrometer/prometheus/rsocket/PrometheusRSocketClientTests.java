@@ -17,7 +17,6 @@ package io.micrometer.prometheus.rsocket;
 
 import io.micrometer.prometheus.PrometheusConfig;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
-import io.rsocket.AbstractRSocket;
 import io.rsocket.Payload;
 import io.rsocket.RSocket;
 import io.rsocket.core.RSocketServer;
@@ -103,7 +102,7 @@ class PrometheusRSocketClientTests {
           serverSocket.set(sendingSocket);
           sendingSocket.requestResponse(payload).subscribe();
 
-          return Mono.just(new AbstractRSocket() {
+          return Mono.just(new RSocket() {
             @Override
             public Mono<Void> fireAndForget(Payload payload) {
               dyingScrapeLatch.countDown();

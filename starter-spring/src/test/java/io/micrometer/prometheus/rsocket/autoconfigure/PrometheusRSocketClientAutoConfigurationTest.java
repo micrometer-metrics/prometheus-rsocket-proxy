@@ -16,8 +16,8 @@
 
 package io.micrometer.prometheus.rsocket.autoconfigure;
 
-import io.rsocket.AbstractRSocket;
 import io.rsocket.Payload;
+import io.rsocket.RSocket;
 import io.rsocket.core.RSocketServer;
 import io.rsocket.frame.decoder.PayloadDecoder;
 import io.rsocket.transport.ServerTransport;
@@ -50,7 +50,7 @@ class PrometheusRSocketClientAutoConfigurationTest {
         .payloadDecoder(PayloadDecoder.ZERO_COPY)
         .acceptor((setup, sendingSocket) -> {
           latch.countDown();
-          return Mono.just(new AbstractRSocket() {
+          return Mono.just(new RSocket() {
             @Override
             public Mono<Void> fireAndForget(Payload payload) {
               return Mono.empty();

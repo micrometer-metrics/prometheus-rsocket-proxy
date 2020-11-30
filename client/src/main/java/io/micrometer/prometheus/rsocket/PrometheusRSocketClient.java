@@ -20,7 +20,6 @@ import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.lang.Nullable;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
-import io.rsocket.AbstractRSocket;
 import io.rsocket.Payload;
 import io.rsocket.RSocket;
 import io.rsocket.core.RSocketConnector;
@@ -86,7 +85,7 @@ public class PrometheusRSocketClient {
         })
         .acceptor((payload, r) -> {
           this.sendingSocket = r;
-          return Mono.just(new AbstractRSocket() {
+          return Mono.just(new RSocket() {
             @Override
             public Mono<Payload> requestResponse(Payload payload) {
               PublicKey key = decodePublicKey(payload.getData());

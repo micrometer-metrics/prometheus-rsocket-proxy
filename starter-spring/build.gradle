@@ -1,7 +1,11 @@
+import org.springframework.boot.gradle.plugin.SpringBootPlugin
+
 plugins {
   id 'java-library'
-  id 'io.spring.dependency-management' version '1.0.10.RELEASE'
+  id 'org.springframework.boot' version '2.4.0' apply false
 }
+
+apply plugin: 'io.spring.dependency-management'
 
 repositories {
   mavenCentral()
@@ -9,7 +13,7 @@ repositories {
 
 dependencyManagement {
   imports {
-    mavenBom 'org.springframework.boot:spring-boot-dependencies:2.3.3.RELEASE'
+    mavenBom SpringBootPlugin.BOM_COORDINATES
   }
 }
 
@@ -21,7 +25,7 @@ dependencies {
   implementation project(':prometheus-rsocket-client')
   implementation project(':prometheus-rsocket-proxy-server')
 
-  implementation 'io.rsocket:rsocket-transport-netty:1.0.2'
+  implementation 'io.rsocket:rsocket-transport-netty'
 
   annotationProcessor 'org.springframework.boot:spring-boot-autoconfigure-processor'
 
