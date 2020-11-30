@@ -7,6 +7,12 @@ buildscript {
   dependencies {
     classpath 'io.spring.gradle:spring-release-plugin:0.20.1'
     classpath 'com.netflix.nebula:nebula-project-plugin:3.4.0'
+
+    constraints {
+      classpath('org.jfrog.buildinfo:build-info-extractor-gradle:4.13.0') {
+        because 'Need recent version for Gradle 6+ compatibility'
+      }
+    }
   }
 
   configurations.classpath.resolutionStrategy.cacheDynamicVersionsFor 0, 'minutes'
