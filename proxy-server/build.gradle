@@ -1,7 +1,11 @@
+import org.springframework.boot.gradle.plugin.SpringBootPlugin
+
 plugins {
     id 'java-library'
-    id 'io.spring.dependency-management' version '1.0.10.RELEASE'
+    id 'org.springframework.boot' version '2.4.0' apply false
 }
+
+apply plugin: 'io.spring.dependency-management'
 
 repositories {
     mavenCentral()
@@ -9,7 +13,7 @@ repositories {
 
 dependencyManagement {
     imports {
-        mavenBom 'org.springframework.boot:spring-boot-dependencies:2.3.3.RELEASE'
+        mavenBom SpringBootPlugin.BOM_COORDINATES
     }
 }
 
@@ -18,8 +22,8 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-webflux'
     implementation 'io.micrometer:micrometer-registry-prometheus'
 
-    implementation 'io.rsocket:rsocket-micrometer:1.0.2'
-    implementation 'io.rsocket:rsocket-transport-netty:1.0.2'
+    implementation 'io.rsocket:rsocket-micrometer'
+    implementation 'io.rsocket:rsocket-transport-netty'
 
     implementation 'org.xerial.snappy:snappy-java:latest.release'
     annotationProcessor "org.springframework.boot:spring-boot-configuration-processor"

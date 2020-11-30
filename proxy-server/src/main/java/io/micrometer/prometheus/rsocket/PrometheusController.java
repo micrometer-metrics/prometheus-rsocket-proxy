@@ -22,7 +22,6 @@ import io.micrometer.core.instrument.Timer;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
-import io.rsocket.AbstractRSocket;
 import io.rsocket.Payload;
 import io.rsocket.RSocket;
 import io.rsocket.core.RSocketServer;
@@ -127,7 +126,7 @@ public class PrometheusController {
     //noinspection CallingSubscribeInNonBlockingScope
     metricsInterceptedSendingSocket.fireAndForget(connectionState.createKeyPayload()).subscribe();
 
-    return Mono.just(new AbstractRSocket() {
+    return Mono.just(new RSocket() {
       @Override
       public Mono<Void> fireAndForget(Payload payload) {
         try {
