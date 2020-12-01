@@ -38,6 +38,7 @@ dependencies {
 if (hasProperty('dockerUser') && hasProperty('dockerPassword')) {
   bootBuildImage {
     imageName = "$dockerUser/prometheus-rsocket-proxy:${project.version}"
+    environment = ["BP_JVM_VERSION" : "11.*"]
     docker {
       publishRegistry {
         username = dockerUser
