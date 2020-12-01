@@ -9,19 +9,19 @@ if [ $CIRCLE_PR_NUMBER ]; then
 elif [ -z $CIRCLE_TAG ]; then
   echo -e "Publishing Snapshot => Branch ['$CIRCLE_BRANCH']"
   openssl enc -d -aes-256-cbc -md sha512 -pbkdf2 -iter 1000 -in gradle.properties.enc -out gradle.properties -pass "pass:$KEY"
-  ./gradlew snapshot dockerPushImage $SWITCHES -x release -x test
+  ./gradlew snapshot bootBuildImage --publishImage $SWITCHES -x release -x test
 elif [ $CIRCLE_TAG ]; then
   echo -e "Publishing Release => Branch ['$CIRCLE_BRANCH']  Tag ['$CIRCLE_TAG']"
   openssl enc -d -aes-256-cbc -md sha512 -pbkdf2 -iter 1000 -in gradle.properties.enc -out gradle.properties -pass "pass:$KEY"
   case "$CIRCLE_TAG" in
   *-rc\.*)
     ./gradlew -Prelease.disableGitChecks=true -Prelease.useLastTag=true candidate bintrayUpload $SWITCHES -x release -x bintrayPublish
-    ./gradlew -Prelease.disableGitChecks=true -Prelease.useLastTag=true :prometheus-rsocket-client:bintrayPublish dockerPushImage $SWITCHES -x bintrayUpload
+    ./gradlew -Prelease.disableGitChecks=true -Prelease.useLastTag=true :prometheus-rsocket-client:bintrayPublish bootBuildImage --publishImage $SWITCHES -x bintrayUpload
     ;;
   *)
     ./gradlew -Prelease.disableGitChecks=true -Prelease.useLastTag=true final bintrayUpload $SWITCHES -x release -x artifactoryPublish -x bintrayPublish
-    ./gradlew -Prelease.disableGitChecks=true -Prelease.useLastTag=true :prometheus-rsocket-client:bintrayPublish dockerPushImage $SWITCHES -x bintrayUpload
-    ./gradlew -Doverride.docker.springBootApplication.tag=micrometermetrics/prometheus-rsocket-proxy:latest dockerPushImage
+    ./gradlew -Prelease.disableGitChecks=true -Prelease.useLastTag=true :prometheus-rsocket-client:bintrayPublish bootBuildImage --publishImage $SWITCHES -x bintrayUpload
+    ./gradlew bootBuildImage --imageName=micrometermetrics/prometheus-rsocket-proxy:latest --publishImage
     ;;
   esac
 else

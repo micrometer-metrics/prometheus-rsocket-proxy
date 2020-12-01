@@ -1,7 +1,5 @@
 plugins {
   id 'org.springframework.boot' version '2.4.0'
-  id 'com.bmuschko.docker-spring-boot-application' version '5.0.0'
-  id 'nebula.override' version '3.0.2'
 }
 
 apply plugin: 'io.spring.dependency-management'
@@ -38,16 +36,14 @@ dependencies {
 }
 
 if (hasProperty('dockerUser') && hasProperty('dockerPassword')) {
-  docker {
-    registryCredentials {
-      username = dockerUser
-      password = dockerPassword
-      email = 'tludwig@pivotal.io'
-    }
-
-    springBootApplication {
-      tag = "$dockerUser/prometheus-rsocket-proxy:${project.version}"
-      baseImage = 'openjdk:8'
+  bootBuildImage {
+    imageName = "$dockerUser/prometheus-rsocket-proxy:${project.version}"
+    docker {
+      publishRegistry {
+        username = dockerUser
+        password = dockerPassword
+        email = 'tludwig@pivotal.io'
+      }
     }
   }
 }
