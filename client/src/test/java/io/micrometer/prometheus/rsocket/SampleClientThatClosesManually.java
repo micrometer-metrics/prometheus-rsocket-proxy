@@ -49,7 +49,7 @@ public class SampleClientThatClosesManually {
     }
 
     CountDownLatch closeLatch = new CountDownLatch(1);
-    client.pushAndClose().subscribe(s -> closeLatch.countDown());
+    client.pushAndClose();
 
     if (!keyLatch.await(3, TimeUnit.SECONDS)) {
       throw new IllegalStateException("Not able to close within 3 seconds");

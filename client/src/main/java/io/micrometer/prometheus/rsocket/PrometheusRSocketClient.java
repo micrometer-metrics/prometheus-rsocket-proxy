@@ -150,18 +150,21 @@ public class PrometheusRSocketClient {
     }
   }
 
-  public Mono<Void> pushAndClose() {
-    PublicKey key = latestKey.get();
+  public void pushAndClose() {
+    final PublicKey key = latestKey.get();
     if (key != null) {
       try {
-        return sendingSocket
+        sendingSocket
             .fireAndForget(scrapePayload(key))
-            .then(Mono.fromRunnable(this::close));
-      } catch (Exception ignored) {
+            .then(Mono.delay(Duration.ofMillis(100)))
+            .then(Mono.fromRunnable(this::close))
+            .block();
+        return;
+      } catch (final Exception ignored) {
         // give up, we tried...
       }
     }
-    return Mono.fromRunnable(this::close);
+    close();
   }
 
   private Payload scrapePayload(@Nullable PublicKey publicKey) throws Exception {

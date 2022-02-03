@@ -130,7 +130,7 @@ class PrometheusRSocketClientTests {
     assertThat(normalScrapeLatch.await(1, TimeUnit.SECONDS)).isTrue();
 
     // trigger dying scrape
-    client.pushAndClose().block(Duration.ofSeconds(1));
+    client.pushAndClose();
     assertThat(dyingScrapeLatch.await(1, TimeUnit.SECONDS))
         .as("Dying scrape (fire-and-forget) should be successfully called")
         .isTrue();
