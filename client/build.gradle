@@ -11,7 +11,7 @@ dependencies {
   api 'io.micrometer:micrometer-registry-prometheus:1.8.2'
   implementation 'org.xerial.snappy:snappy-java:latest.release'
 
-  testImplementation 'ch.qos.logback:logback-classic:1.2.3'
+  testImplementation 'ch.qos.logback:logback-classic:1.2.+'
   testImplementation 'org.junit.jupiter:junit-jupiter:5.8.+'
   testImplementation 'io.rsocket:rsocket-transport-netty:1.1.+'
   testImplementation 'io.rsocket:rsocket-transport-local:1.1.+'
