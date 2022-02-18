@@ -1,6 +1,9 @@
 #!/bin/bash -e
 # This script will deploy the project artifacts.
 
+# Exit script if a statement returns a non-true return value. Fail fast. Fail the build.
+set -o errexit
+
 SWITCHES="-s --console=plain -x test"
 # circleci does not like multi-line values so they are base64 encoded
 ORG_GRADLE_PROJECT_SIGNING_KEY="$(echo "$ORG_GRADLE_PROJECT_SIGNING_KEY" | base64 -d)"
