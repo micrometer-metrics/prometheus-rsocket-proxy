@@ -2,7 +2,7 @@ import org.springframework.boot.gradle.plugin.SpringBootPlugin
 
 plugins {
   id 'java-library'
-  id 'org.springframework.boot' version '2.4.0' apply false
+  id 'org.springframework.boot' version '2.6.3' apply false
 }
 
 apply plugin: 'io.spring.dependency-management'
