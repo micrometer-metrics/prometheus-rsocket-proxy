@@ -22,7 +22,7 @@ elif [ $CIRCLE_TAG ]; then
     ./gradlew -Prelease.disableGitChecks=true -Prelease.useLastTag=true -Prelease.stage=milestone candidate bootBuildImage --publishImage publishNebulaPublicationToMilestoneRepository $SWITCHES
     ;;
   *)
-    ./gradlew -Prelease.disableGitChecks=true -Prelease.useLastTag=true -Prelease.stage=final final bootBuildImage publishNebulaPublicationToMavenCentralRepository closeAndReleaseMavenCentralStagingRepository --publishImage $SWITCHES
+    ./gradlew -Prelease.disableGitChecks=true -Prelease.useLastTag=true -Prelease.stage=final final bootBuildImage --publishImage publishNebulaPublicationToMavenCentralRepository closeAndReleaseMavenCentralStagingRepository $SWITCHES
     ./gradlew -Prelease.disableGitChecks=true -Prelease.useLastTag=true -Prelease.stage=final final bootBuildImage --imageName=micrometermetrics/prometheus-rsocket-proxy:latest --publishImage $SWITCHES
     ;;
   esac
