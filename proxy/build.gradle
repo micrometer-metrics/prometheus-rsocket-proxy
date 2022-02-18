@@ -36,14 +36,14 @@ dependencies {
   testImplementation 'io.projectreactor:reactor-test'
 }
 
-if (hasProperty('dockerUser') && hasProperty('dockerPassword')) {
+if (hasProperty('DOCKER_USER') && hasProperty('DOCKER_PASSWORD')) {
   bootBuildImage {
-    imageName = "$dockerUser/prometheus-rsocket-proxy:${project.version}"
+    imageName = "${findProperty('DOCKER_USER')}/prometheus-rsocket-proxy:${project.version}"
     environment = ["BP_JVM_VERSION" : "11.*"]
     docker {
       publishRegistry {
-        username = dockerUser
-        password = dockerPassword
+        username = findProperty('DOCKER_USER')
+        password = findProperty('DOCKER_PASSWORD')
         email = 'tludwig@pivotal.io'
       }
     }
