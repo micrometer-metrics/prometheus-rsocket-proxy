@@ -45,7 +45,7 @@ public class SampleServerlessClient {
 
     Thread.sleep(1000);
 
-    client.pushAndClose().block(Duration.ofSeconds(1));
+    client.pushAndClose();
     counts.dispose();
   }
 }

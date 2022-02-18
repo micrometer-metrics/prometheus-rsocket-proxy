@@ -48,8 +48,7 @@ public class SampleClientThatClosesManually {
       throw new IllegalStateException("Didn't receive a key within 10 seconds");
     }
 
-    CountDownLatch closeLatch = new CountDownLatch(1);
-    client.pushAndClose().subscribe(s -> closeLatch.countDown());
+    client.pushAndClose();
 
     if (!keyLatch.await(3, TimeUnit.SECONDS)) {
       throw new IllegalStateException("Not able to close within 3 seconds");
