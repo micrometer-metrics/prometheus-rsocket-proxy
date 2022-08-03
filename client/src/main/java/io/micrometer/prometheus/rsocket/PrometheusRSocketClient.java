@@ -29,6 +29,8 @@ import org.reactivestreams.Publisher;
 import org.xerial.snappy.Snappy;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.util.Logger;
+import reactor.util.Loggers;
 import reactor.util.retry.Retry;
 
 import javax.crypto.Cipher;
@@ -42,8 +44,11 @@ import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
 import java.time.Duration;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
+
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 /**
  * Establishes a persistent bidirectional RSocket connection to a Prometheus RSocket proxy.
@@ -51,6 +56,7 @@ import java.util.function.Supplier;
  * from each client.
  */
 public class PrometheusRSocketClient {
+  private static final Logger LOGGER = Loggers.getLogger(PrometheusRSocketClient.class);
   private final MeterRegistryAndScrape<?> registryAndScrape;
 
   private volatile RSocket connection;
@@ -150,15 +156,57 @@ public class PrometheusRSocketClient {
     }
   }
 
+  /**
+   * Pushes the data in a blocking way and closes the connection.
+   */
+  public void pushAndCloseBlockingly() {
+    pushAndCloseBlockingly(Duration.ofSeconds(5));
+  }
+
+  /**
+   * Pushes the data in a blocking way and closes the connection.
+   * @param timeout the amount of time to wait for the data to be sent
+   */
+  public void pushAndCloseBlockingly(Duration timeout) {
+    CountDownLatch latch = new CountDownLatch(1);
+    PublicKey key = latestKey.get();
+    if (key != null) {
+      try {
+        sendingSocket
+            .fireAndForget(scrapePayload(key))
+            .doOnEach(signal -> latch.countDown())
+            .subscribe();
+      }
+      catch (Exception exception) {
+        latch.countDown();
+        LOGGER.warn("Sending the payload failed!", exception);
+      }
+
+      try {
+        if (!latch.await(timeout.toMillis(), MILLISECONDS)) {
+          LOGGER.warn("Sending the payload timed out!");
+        }
+      }
+      catch (InterruptedException exception) {
+        LOGGER.warn("Waiting for sending the payload was interrupted!", exception);
+      }
+    }
+    close();
+  }
+
+  /**
+   * Pushes the data asynchronously (non-blocking) and closes the connection.
+   */
   public void pushAndClose() {
     PublicKey key = latestKey.get();
     if (key != null) {
       try {
         sendingSocket
             .fireAndForget(scrapePayload(key))
-            .block(Duration.ofSeconds(1));
-      } catch (Exception ignored) {
-        // give up, we tried...
+            .subscribe();
+      }
+      catch (Exception exception) {
+        LOGGER.warn("Sending the payload failed!", exception);
       }
     }
     close();
@@ -230,6 +278,34 @@ public class PrometheusRSocketClient {
 
     public PrometheusRSocketClient connect() {
       return new PrometheusRSocketClient(registryAndScrape, clientTransport, retry, onKeyReceived);
+    }
+
+    public PrometheusRSocketClient connectBlockingly() {
+      return connectBlockingly(Duration.ofSeconds(5));
+    }
+
+    public PrometheusRSocketClient connectBlockingly(Duration timeout) {
+      CountDownLatch latch = new CountDownLatch(1);
+      PrometheusRSocketClient client = new PrometheusRSocketClient(
+          registryAndScrape,
+          clientTransport,
+          retry,
+          () -> {
+            latch.countDown();
+            onKeyReceived.run();
+          }
+      );
+
+      try {
+        if (!latch.await(timeout.toMillis(), MILLISECONDS)) {
+          LOGGER.warn("Creating the connection and receiving the key timed out!");
+        }
+      }
+      catch (InterruptedException exception) {
+        LOGGER.warn("Waiting for receiving the key was interrupted!", exception);
+      }
+
+      return client;
     }
   }
 
