@@ -103,6 +103,13 @@ class PrometheusRSocketClientTests {
           sendingSocket.requestResponse(payload).subscribe();
 
           return Mono.just(new RSocket() {
+
+            @Override
+            public Mono<Payload> requestResponse(Payload payload) {
+              dyingScrapeLatch.countDown();
+              return Mono.empty();
+            }
+
             @Override
             public Mono<Void> fireAndForget(Payload payload) {
               dyingScrapeLatch.countDown();
@@ -132,7 +139,7 @@ class PrometheusRSocketClientTests {
     // trigger dying scrape
     client.pushAndClose();
     assertThat(dyingScrapeLatch.await(1, TimeUnit.SECONDS))
-        .as("Dying scrape (fire-and-forget) should be successfully called")
+        .as("Dying scrape should be successfully called")
         .isTrue();
 
     // after pushAndClose(), the client should no longer be scrapable
