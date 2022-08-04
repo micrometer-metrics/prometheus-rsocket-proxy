@@ -173,7 +173,7 @@ public class PrometheusRSocketClient {
     if (key != null) {
       try {
         sendingSocket
-            .fireAndForget(scrapePayload(key))
+            .requestResponse(scrapePayload(key))
             .doOnEach(signal -> latch.countDown())
             .subscribe();
       }
@@ -202,7 +202,7 @@ public class PrometheusRSocketClient {
     if (key != null) {
       try {
         sendingSocket
-            .fireAndForget(scrapePayload(key))
+            .requestResponse(scrapePayload(key))
             .subscribe();
       }
       catch (Exception exception) {
