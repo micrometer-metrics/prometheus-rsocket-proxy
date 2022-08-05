@@ -133,8 +133,7 @@ public class PrometheusController {
       public Mono<Payload> requestResponse(Payload payload) {
         try {
           connectionState.setDyingPush(connectionState.receiveScrapePayload(payload, null));
-        }
-        catch (Throwable t) {
+        } catch (Throwable t) {
           t.printStackTrace();
         }
         return Mono.just(EmptyPayload.INSTANCE);

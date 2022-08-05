@@ -24,6 +24,7 @@ import io.rsocket.frame.decoder.PayloadDecoder;
 import io.rsocket.transport.local.LocalClientTransport;
 import io.rsocket.transport.local.LocalServerTransport;
 import io.rsocket.util.DefaultPayload;
+import io.rsocket.util.EmptyPayload;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Mono;
 import reactor.util.retry.Retry;
@@ -35,6 +36,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class PrometheusRSocketClientTests {
@@ -59,7 +61,7 @@ class PrometheusRSocketClientTests {
         .retry(Retry.fixedDelay(10, Duration.ofMillis(5)).doAfterRetry(retry -> reconnectionAttemptLatch.countDown()))
         .connect();
 
-    assertThat(reconnectionAttemptLatch.await(1, TimeUnit.SECONDS)).isTrue();
+    assertThat(reconnectionAttemptLatch.await(1, SECONDS)).isTrue();
     assertThat(meterRegistry.get("prometheus.connection.retry").summary().count()).isGreaterThanOrEqualTo(3);
   }
 
@@ -82,7 +84,7 @@ class PrometheusRSocketClientTests {
 
     client.pushAndClose();
 
-    assertThat(connectionLatch.await(1, TimeUnit.SECONDS)).isFalse();
+    assertThat(connectionLatch.await(1, SECONDS)).isFalse();
     assertThat(connectionLatch.getCount()).isEqualTo(2);
   }
 
@@ -107,7 +109,7 @@ class PrometheusRSocketClientTests {
             @Override
             public Mono<Payload> requestResponse(Payload payload) {
               dyingScrapeLatch.countDown();
-              return Mono.empty();
+              return Mono.just(EmptyPayload.INSTANCE);
             }
 
             @Override
@@ -134,7 +136,7 @@ class PrometheusRSocketClientTests {
         .retry(Retry.max(0))
         .connect();
 
-    assertThat(normalScrapeLatch.await(1, TimeUnit.SECONDS)).isTrue();
+    assertThat(normalScrapeLatch.await(1, SECONDS)).isTrue();
 
     // trigger dying scrape
     client.pushAndClose();
