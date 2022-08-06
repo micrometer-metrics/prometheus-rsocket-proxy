@@ -19,6 +19,8 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.lang.Nullable;
+import io.micrometer.core.util.internal.logging.InternalLogger;
+import io.micrometer.core.util.internal.logging.InternalLoggerFactory;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.rsocket.Payload;
 import io.rsocket.RSocket;
@@ -29,8 +31,6 @@ import org.reactivestreams.Publisher;
 import org.xerial.snappy.Snappy;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
-import reactor.util.Logger;
-import reactor.util.Loggers;
 import reactor.util.retry.Retry;
 
 import javax.crypto.Cipher;
@@ -56,7 +56,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
  * from each client.
  */
 public class PrometheusRSocketClient {
-  private static final Logger LOGGER = Loggers.getLogger(PrometheusRSocketClient.class);
+  private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(PrometheusRSocketClient.class);
   private final MeterRegistryAndScrape<?> registryAndScrape;
 
   private volatile RSocket connection;
