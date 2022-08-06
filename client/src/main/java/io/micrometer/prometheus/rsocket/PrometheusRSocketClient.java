@@ -291,8 +291,8 @@ public class PrometheusRSocketClient {
           clientTransport,
           retry,
           () -> {
-            latch.countDown();
             onKeyReceived.run();
+            latch.countDown();
           }
       );
 

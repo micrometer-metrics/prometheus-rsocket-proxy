@@ -27,15 +27,24 @@ import io.rsocket.util.DefaultPayload;
 import io.rsocket.util.EmptyPayload;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 import reactor.util.retry.Retry;
 
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static java.util.concurrent.CompletableFuture.delayedExecutor;
+import static java.util.concurrent.CompletableFuture.runAsync;
+import static java.util.concurrent.CompletableFuture.supplyAsync;
+import static java.util.concurrent.Executors.newSingleThreadExecutor;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -134,12 +143,12 @@ class PrometheusRSocketClientTests {
             serverTransport.clientTransport()
         )
         .retry(Retry.max(0))
-        .connect();
+        .connectBlockingly();
 
     assertThat(normalScrapeLatch.await(1, SECONDS)).isTrue();
 
     // trigger dying scrape
-    client.pushAndClose();
+    client.pushAndCloseBlockingly();
     assertThat(dyingScrapeLatch.await(1, TimeUnit.SECONDS))
         .as("Dying scrape should be successfully called")
         .isTrue();
@@ -152,5 +161,70 @@ class PrometheusRSocketClientTests {
         .block(Duration.ofSeconds(10));
 
     assertThat(failed).isTrue();
+  }
+
+  @Test
+  void blockingConnectAndPush() throws NoSuchAlgorithmException, InterruptedException, ExecutionException {
+    CountDownLatch pushLatch = new CountDownLatch(1);
+    AtomicBoolean pushed = new AtomicBoolean(false);
+    Payload payload = DefaultPayload.create(KeyPairGenerator.getInstance("RSA").generateKeyPair().getPublic().getEncoded());
+    RSocketServer.create()
+        .payloadDecoder(PayloadDecoder.ZERO_COPY)
+        .acceptor((setup, sendingSocket) -> {
+          sendingSocket.requestResponse(payload)
+              .subscribeOn(Schedulers.newSingle("server-polls"))
+              .subscribe();
+
+          return Mono.just(new RSocket() {
+            @Override
+            public Mono<Payload> requestResponse(Payload payload) {
+              return Mono.defer(() -> {
+                await(pushLatch);
+                pushed.set(true);
+                return Mono.just(EmptyPayload.INSTANCE);
+              })
+                  .map(p -> (Payload) p)
+                  .subscribeOn(Schedulers.newSingle("server-polls"));
+            }
+          });
+        })
+        .bind(serverTransport)
+        .block();
+
+    CountDownLatch keyReceivedLatch = new CountDownLatch(1);
+    AtomicBoolean keyReceived = new AtomicBoolean(false);
+    PrometheusRSocketClient.Builder clientBuilder = PrometheusRSocketClient.build(
+        meterRegistry,
+        () -> "",
+        serverTransport.clientTransport()
+    )
+        .retry(Retry.max(0))
+        .doOnKeyReceived(() -> {
+          await(keyReceivedLatch);
+          keyReceived.set(true);
+        });
+
+    CompletableFuture<PrometheusRSocketClient> clientFuture = supplyAsync(clientBuilder::connectBlockingly, newSingleThreadExecutor());
+    runAsync(keyReceivedLatch::countDown, delayedExecutor(200, MILLISECONDS));
+    assertThat(keyReceived).as("Public key should not be received (not connected)").isFalse();
+    PrometheusRSocketClient client = clientFuture.get();
+    assertThat(keyReceived).as("Public key should be received(connected)").isTrue();
+
+    CompletableFuture<Void> closeFuture = runAsync(client::pushAndCloseBlockingly, newSingleThreadExecutor());
+    runAsync(pushLatch::countDown, delayedExecutor(200, MILLISECONDS));
+    assertThat(pushed).as("Data should not be pushed").isFalse();
+    closeFuture.get();
+    assertThat(pushed).as("Data should be pushed").isTrue();
+  }
+
+  private void await(CountDownLatch latch) {
+    try {
+      if (!latch.await(5, SECONDS)) {
+        throw new RuntimeException("Latch timed out, there might be a problem with the test setup.");
+      }
+    }
+    catch (InterruptedException e) {
+      throw new RuntimeException(e);
+    }
   }
 }
