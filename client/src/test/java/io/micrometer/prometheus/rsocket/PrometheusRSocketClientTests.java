@@ -36,11 +36,12 @@ import java.time.Duration;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static java.util.concurrent.CompletableFuture.delayedExecutor;
 import static java.util.concurrent.CompletableFuture.runAsync;
 import static java.util.concurrent.CompletableFuture.supplyAsync;
 import static java.util.concurrent.Executors.newSingleThreadExecutor;
@@ -205,16 +206,20 @@ class PrometheusRSocketClientTests {
         });
 
     CompletableFuture<PrometheusRSocketClient> clientFuture = supplyAsync(clientBuilder::connectBlockingly, newSingleThreadExecutor());
-    runAsync(keyReceivedLatch::countDown, delayedExecutor(200, MILLISECONDS));
+    runAsync(keyReceivedLatch::countDown, newDelayedExecutor());
     assertThat(keyReceived).as("Public key should not be received (not connected)").isFalse();
     PrometheusRSocketClient client = clientFuture.get();
     assertThat(keyReceived).as("Public key should be received(connected)").isTrue();
 
     CompletableFuture<Void> closeFuture = runAsync(client::pushAndCloseBlockingly, newSingleThreadExecutor());
-    runAsync(pushLatch::countDown, delayedExecutor(200, MILLISECONDS));
+    runAsync(pushLatch::countDown, newDelayedExecutor());
     assertThat(pushed).as("Data should not be pushed").isFalse();
     closeFuture.get();
     assertThat(pushed).as("Data should be pushed").isTrue();
+  }
+
+  private Executor newDelayedExecutor() {
+    return runnable -> new ScheduledThreadPoolExecutor(1).schedule(runnable, 200, MILLISECONDS);
   }
 
   private void await(CountDownLatch latch) {
