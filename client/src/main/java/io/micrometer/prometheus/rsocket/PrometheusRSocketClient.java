@@ -168,13 +168,20 @@ public class PrometheusRSocketClient {
    * @param timeout the amount of time to wait for the data to be sent
    */
   public void pushAndCloseBlockingly(Duration timeout) {
+    LOGGER.debug("Pushing data to RSocket Proxy before closing the connection...");
     CountDownLatch latch = new CountDownLatch(1);
     PublicKey key = latestKey.get();
     if (key != null) {
       try {
         sendingSocket
+            // This should be requestResponse instead of fireAndForget
+            // since the latter will almost immediately emit the complete signal (before anything happens on the wire)
+            // so waiting for it to terminate does not make too much sense; more details: https://github.com/micrometer-metrics/prometheus-rsocket-proxy/pull/54
             .requestResponse(scrapePayload(key))
-            .doOnEach(signal -> latch.countDown())
+            .doOnSuccess(payload -> LOGGER.info("Pushing data to RSocket Proxy before closing the connection was successful!"))
+            .doOnError(throwable -> LOGGER.warn("Pushing data to RSocket Proxy before closing the connection failed!", throwable))
+            .doOnCancel(() -> LOGGER.warn("Pushing data to RSocket Proxy before closing the connection was cancelled!"))
+            .doFinally(signalType -> latch.countDown())
             .subscribe();
       }
       catch (Exception exception) {
@@ -198,11 +205,15 @@ public class PrometheusRSocketClient {
    * Pushes the data asynchronously (non-blocking) and closes the connection.
    */
   public void pushAndClose() {
+    LOGGER.debug("Pushing data to RSocket Proxy before closing the connection...");
     PublicKey key = latestKey.get();
     if (key != null) {
       try {
         sendingSocket
-            .requestResponse(scrapePayload(key))
+            .fireAndForget(scrapePayload(key))
+            .doOnSuccess(payload -> LOGGER.info("Pushing data to RSocket Proxy before closing the connection was successful!"))
+            .doOnError(throwable -> LOGGER.warn("Pushing data to RSocket Proxy before closing the connection failed!", throwable))
+            .doOnCancel(() -> LOGGER.warn("Pushing data to RSocket Proxy before closing the connection was cancelled!"))
             .subscribe();
       }
       catch (Exception exception) {
@@ -277,7 +288,16 @@ public class PrometheusRSocketClient {
     }
 
     public PrometheusRSocketClient connect() {
-      return new PrometheusRSocketClient(registryAndScrape, clientTransport, retry, onKeyReceived);
+      LOGGER.debug("Connecting to RSocket Proxy...");
+      return new PrometheusRSocketClient(
+          registryAndScrape,
+          clientTransport,
+          retry,
+          () -> {
+            LOGGER.info("Connected to RSocket Proxy!");
+            onKeyReceived.run();
+          }
+      );
     }
 
     public PrometheusRSocketClient connectBlockingly() {
@@ -285,12 +305,14 @@ public class PrometheusRSocketClient {
     }
 
     public PrometheusRSocketClient connectBlockingly(Duration timeout) {
+      LOGGER.debug("Connecting to RSocket Proxy...");
       CountDownLatch latch = new CountDownLatch(1);
       PrometheusRSocketClient client = new PrometheusRSocketClient(
           registryAndScrape,
           clientTransport,
           retry,
           () -> {
+            LOGGER.info("Connected to RSocket Proxy!");
             onKeyReceived.run();
             latch.countDown();
           }
