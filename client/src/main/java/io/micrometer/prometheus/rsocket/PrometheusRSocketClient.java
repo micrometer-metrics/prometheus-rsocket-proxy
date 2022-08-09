@@ -19,6 +19,8 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.lang.Nullable;
+import io.micrometer.core.util.internal.logging.InternalLogger;
+import io.micrometer.core.util.internal.logging.InternalLoggerFactory;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.rsocket.Payload;
 import io.rsocket.RSocket;
@@ -42,8 +44,11 @@ import java.security.PublicKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
 import java.time.Duration;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
+
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 /**
  * Establishes a persistent bidirectional RSocket connection to a Prometheus RSocket proxy.
@@ -51,6 +56,7 @@ import java.util.function.Supplier;
  * from each client.
  */
 public class PrometheusRSocketClient {
+  private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(PrometheusRSocketClient.class);
   private final MeterRegistryAndScrape<?> registryAndScrape;
 
   private volatile RSocket connection;
@@ -150,15 +156,68 @@ public class PrometheusRSocketClient {
     }
   }
 
+  /**
+   * Pushes the data in a blocking way and closes the connection.
+   */
+  public void pushAndCloseBlockingly() {
+    pushAndCloseBlockingly(Duration.ofSeconds(5));
+  }
+
+  /**
+   * Pushes the data in a blocking way and closes the connection.
+   * @param timeout the amount of time to wait for the data to be sent
+   */
+  public void pushAndCloseBlockingly(Duration timeout) {
+    LOGGER.debug("Pushing data to RSocket Proxy before closing the connection...");
+    CountDownLatch latch = new CountDownLatch(1);
+    PublicKey key = latestKey.get();
+    if (key != null) {
+      try {
+        sendingSocket
+            // This should be requestResponse instead of fireAndForget
+            // since the latter will almost immediately emit the complete signal (before anything happens on the wire)
+            // so waiting for it to terminate does not make too much sense; more details: https://github.com/micrometer-metrics/prometheus-rsocket-proxy/pull/54
+            .requestResponse(scrapePayload(key))
+            .doOnSuccess(payload -> LOGGER.info("Pushing data to RSocket Proxy before closing the connection was successful!"))
+            .doOnError(throwable -> LOGGER.warn("Pushing data to RSocket Proxy before closing the connection failed!", throwable))
+            .doOnCancel(() -> LOGGER.warn("Pushing data to RSocket Proxy before closing the connection was cancelled!"))
+            .doFinally(signalType -> latch.countDown())
+            .subscribe();
+      }
+      catch (Exception exception) {
+        latch.countDown();
+        LOGGER.warn("Sending the payload failed!", exception);
+      }
+
+      try {
+        if (!latch.await(timeout.toMillis(), MILLISECONDS)) {
+          LOGGER.warn("Sending the payload timed out!");
+        }
+      }
+      catch (InterruptedException exception) {
+        LOGGER.warn("Waiting for sending the payload was interrupted!", exception);
+      }
+    }
+    close();
+  }
+
+  /**
+   * Pushes the data asynchronously (non-blocking) and closes the connection.
+   */
   public void pushAndClose() {
+    LOGGER.debug("Pushing data to RSocket Proxy before closing the connection...");
     PublicKey key = latestKey.get();
     if (key != null) {
       try {
         sendingSocket
             .fireAndForget(scrapePayload(key))
-            .block(Duration.ofSeconds(1));
-      } catch (Exception ignored) {
-        // give up, we tried...
+            .doOnSuccess(payload -> LOGGER.info("Pushing data to RSocket Proxy before closing the connection was successful!"))
+            .doOnError(throwable -> LOGGER.warn("Pushing data to RSocket Proxy before closing the connection failed!", throwable))
+            .doOnCancel(() -> LOGGER.warn("Pushing data to RSocket Proxy before closing the connection was cancelled!"))
+            .subscribe();
+      }
+      catch (Exception exception) {
+        LOGGER.warn("Sending the payload failed!", exception);
       }
     }
     close();
@@ -229,7 +288,46 @@ public class PrometheusRSocketClient {
     }
 
     public PrometheusRSocketClient connect() {
-      return new PrometheusRSocketClient(registryAndScrape, clientTransport, retry, onKeyReceived);
+      LOGGER.debug("Connecting to RSocket Proxy...");
+      return new PrometheusRSocketClient(
+          registryAndScrape,
+          clientTransport,
+          retry,
+          () -> {
+            LOGGER.info("Connected to RSocket Proxy!");
+            onKeyReceived.run();
+          }
+      );
+    }
+
+    public PrometheusRSocketClient connectBlockingly() {
+      return connectBlockingly(Duration.ofSeconds(5));
+    }
+
+    public PrometheusRSocketClient connectBlockingly(Duration timeout) {
+      LOGGER.debug("Connecting to RSocket Proxy...");
+      CountDownLatch latch = new CountDownLatch(1);
+      PrometheusRSocketClient client = new PrometheusRSocketClient(
+          registryAndScrape,
+          clientTransport,
+          retry,
+          () -> {
+            LOGGER.info("Connected to RSocket Proxy!");
+            onKeyReceived.run();
+            latch.countDown();
+          }
+      );
+
+      try {
+        if (!latch.await(timeout.toMillis(), MILLISECONDS)) {
+          LOGGER.warn("Creating the connection and receiving the key timed out!");
+        }
+      }
+      catch (InterruptedException exception) {
+        LOGGER.warn("Waiting for receiving the key was interrupted!", exception);
+      }
+
+      return client;
     }
   }
 

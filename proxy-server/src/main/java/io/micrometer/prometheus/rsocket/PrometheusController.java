@@ -33,6 +33,8 @@ import io.rsocket.util.DefaultPayload;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
+
+import io.rsocket.util.EmptyPayload;
 import org.xerial.snappy.Snappy;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -127,6 +129,16 @@ public class PrometheusController {
     metricsInterceptedSendingSocket.fireAndForget(connectionState.createKeyPayload()).subscribe();
 
     return Mono.just(new RSocket() {
+      @Override
+      public Mono<Payload> requestResponse(Payload payload) {
+        try {
+          connectionState.setDyingPush(connectionState.receiveScrapePayload(payload, null));
+        } catch (Throwable t) {
+          t.printStackTrace();
+        }
+        return Mono.just(EmptyPayload.INSTANCE);
+      }
+
       @Override
       public Mono<Void> fireAndForget(Payload payload) {
         try {

@@ -36,11 +36,11 @@ import reactor.util.retry.Retry;
 public class PrometheusRSocketClientAutoConfiguration {
 
   @ConditionalOnMissingBean
-  @Bean(destroyMethod = "pushAndClose")
+  @Bean(destroyMethod = "pushAndCloseBlockingly")
   PrometheusRSocketClient prometheusRSocketClient(PrometheusMeterRegistry meterRegistry, PrometheusRSocketClientProperties properties) {
     return PrometheusRSocketClient.build(meterRegistry, properties.createClientTransport())
         .retry(Retry.backoff(properties.getMaxRetries(), properties.getFirstBackoff())
             .maxBackoff(properties.getMaxBackoff()))
-        .connect();
+        .connectBlockingly();
   }
 }

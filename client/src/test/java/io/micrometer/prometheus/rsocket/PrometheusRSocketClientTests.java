@@ -24,17 +24,29 @@ import io.rsocket.frame.decoder.PayloadDecoder;
 import io.rsocket.transport.local.LocalClientTransport;
 import io.rsocket.transport.local.LocalServerTransport;
 import io.rsocket.util.DefaultPayload;
+import io.rsocket.util.EmptyPayload;
 import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Mono;
+import reactor.core.scheduler.Schedulers;
 import reactor.util.retry.Retry;
 
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static java.util.concurrent.CompletableFuture.runAsync;
+import static java.util.concurrent.CompletableFuture.supplyAsync;
+import static java.util.concurrent.Executors.newSingleThreadExecutor;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class PrometheusRSocketClientTests {
@@ -59,7 +71,7 @@ class PrometheusRSocketClientTests {
         .retry(Retry.fixedDelay(10, Duration.ofMillis(5)).doAfterRetry(retry -> reconnectionAttemptLatch.countDown()))
         .connect();
 
-    assertThat(reconnectionAttemptLatch.await(1, TimeUnit.SECONDS)).isTrue();
+    assertThat(reconnectionAttemptLatch.await(1, SECONDS)).isTrue();
     assertThat(meterRegistry.get("prometheus.connection.retry").summary().count()).isGreaterThanOrEqualTo(3);
   }
 
@@ -82,7 +94,7 @@ class PrometheusRSocketClientTests {
 
     client.pushAndClose();
 
-    assertThat(connectionLatch.await(1, TimeUnit.SECONDS)).isFalse();
+    assertThat(connectionLatch.await(1, SECONDS)).isFalse();
     assertThat(connectionLatch.getCount()).isEqualTo(2);
   }
 
@@ -103,6 +115,13 @@ class PrometheusRSocketClientTests {
           sendingSocket.requestResponse(payload).subscribe();
 
           return Mono.just(new RSocket() {
+
+            @Override
+            public Mono<Payload> requestResponse(Payload payload) {
+              dyingScrapeLatch.countDown();
+              return Mono.just(EmptyPayload.INSTANCE);
+            }
+
             @Override
             public Mono<Void> fireAndForget(Payload payload) {
               dyingScrapeLatch.countDown();
@@ -125,14 +144,14 @@ class PrometheusRSocketClientTests {
             serverTransport.clientTransport()
         )
         .retry(Retry.max(0))
-        .connect();
+        .connectBlockingly();
 
-    assertThat(normalScrapeLatch.await(1, TimeUnit.SECONDS)).isTrue();
+    assertThat(normalScrapeLatch.await(1, SECONDS)).isTrue();
 
     // trigger dying scrape
-    client.pushAndClose();
+    client.pushAndCloseBlockingly();
     assertThat(dyingScrapeLatch.await(1, TimeUnit.SECONDS))
-        .as("Dying scrape (fire-and-forget) should be successfully called")
+        .as("Dying scrape should be successfully called")
         .isTrue();
 
     // after pushAndClose(), the client should no longer be scrapable
@@ -143,5 +162,74 @@ class PrometheusRSocketClientTests {
         .block(Duration.ofSeconds(10));
 
     assertThat(failed).isTrue();
+  }
+
+  @Test
+  void blockingConnectAndPush() throws NoSuchAlgorithmException, InterruptedException, ExecutionException {
+    CountDownLatch pushLatch = new CountDownLatch(1);
+    AtomicBoolean pushed = new AtomicBoolean(false);
+    Payload payload = DefaultPayload.create(KeyPairGenerator.getInstance("RSA").generateKeyPair().getPublic().getEncoded());
+    RSocketServer.create()
+        .payloadDecoder(PayloadDecoder.ZERO_COPY)
+        .acceptor((setup, sendingSocket) -> {
+          sendingSocket.requestResponse(payload)
+              .subscribeOn(Schedulers.newSingle("server-polls"))
+              .subscribe();
+
+          return Mono.just(new RSocket() {
+            @Override
+            public Mono<Payload> requestResponse(Payload payload) {
+              return Mono.defer(() -> {
+                await(pushLatch);
+                pushed.set(true);
+                return Mono.just(EmptyPayload.INSTANCE);
+              })
+                  .map(p -> (Payload) p)
+                  .subscribeOn(Schedulers.newSingle("server-polls"));
+            }
+          });
+        })
+        .bind(serverTransport)
+        .block();
+
+    CountDownLatch keyReceivedLatch = new CountDownLatch(1);
+    AtomicBoolean keyReceived = new AtomicBoolean(false);
+    PrometheusRSocketClient.Builder clientBuilder = PrometheusRSocketClient.build(
+        meterRegistry,
+        () -> "",
+        serverTransport.clientTransport()
+    )
+        .retry(Retry.max(0))
+        .doOnKeyReceived(() -> {
+          await(keyReceivedLatch);
+          keyReceived.set(true);
+        });
+
+    CompletableFuture<PrometheusRSocketClient> clientFuture = supplyAsync(clientBuilder::connectBlockingly, newSingleThreadExecutor());
+    runAsync(keyReceivedLatch::countDown, newDelayedExecutor());
+    assertThat(keyReceived).as("Public key should not be received (not connected)").isFalse();
+    PrometheusRSocketClient client = clientFuture.get();
+    assertThat(keyReceived).as("Public key should be received(connected)").isTrue();
+
+    CompletableFuture<Void> closeFuture = runAsync(client::pushAndCloseBlockingly, newSingleThreadExecutor());
+    runAsync(pushLatch::countDown, newDelayedExecutor());
+    assertThat(pushed).as("Data should not be pushed").isFalse();
+    closeFuture.get();
+    assertThat(pushed).as("Data should be pushed").isTrue();
+  }
+
+  private Executor newDelayedExecutor() {
+    return runnable -> new ScheduledThreadPoolExecutor(1).schedule(runnable, 200, MILLISECONDS);
+  }
+
+  private void await(CountDownLatch latch) {
+    try {
+      if (!latch.await(5, SECONDS)) {
+        throw new RuntimeException("Latch timed out, there might be a problem with the test setup.");
+      }
+    }
+    catch (InterruptedException e) {
+      throw new RuntimeException(e);
+    }
   }
 }
