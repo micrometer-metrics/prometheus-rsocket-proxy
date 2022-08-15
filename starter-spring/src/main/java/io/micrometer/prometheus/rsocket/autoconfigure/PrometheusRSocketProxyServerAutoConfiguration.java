@@ -18,12 +18,12 @@ package io.micrometer.prometheus.rsocket.autoconfigure;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.micrometer.prometheus.rsocket.PrometheusController;
 import io.micrometer.prometheus.rsocket.PrometheusControllerProperties;
+import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Lazy;
 
 /**
@@ -35,7 +35,7 @@ import org.springframework.context.annotation.Lazy;
  * @author Scott Steele
  * @author Doug Saus
  */
-@Configuration(proxyBeanMethods = false)
+@AutoConfiguration
 @ConditionalOnClass(PrometheusMeterRegistry.class)
 @ConditionalOnBean(PrometheusRSocketProxyServerMarkerConfiguration.Marker.class)
 @EnableConfigurationProperties(PrometheusControllerProperties.class)

@@ -1,0 +1,2 @@
+io.micrometer.prometheus.rsocket.autoconfigure.PrometheusRSocketClientAutoConfiguration
+io.micrometer.prometheus.rsocket.autoconfigure.PrometheusRSocketProxyServerAutoConfiguration
