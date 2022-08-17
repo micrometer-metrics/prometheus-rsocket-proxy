@@ -14,7 +14,8 @@ publishing {
       artifacts {
         // ensure the Spring Boot jar gets published rather than the plain jar
         artifact bootJar
-        artifact javadocJar // because of bootJar, we need to put this back (sourceJar is ok)
+        artifact sourceJar // because of bootJar, we need to put these back (sourceJar and javadocJar)
+        artifact javadocJar
       }
     }
   }
