@@ -32,6 +32,7 @@ import io.rsocket.transport.netty.server.WebsocketServerTransport;
 import io.rsocket.util.DefaultPayload;
 import org.springframework.stereotype.Controller;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
 import io.rsocket.util.EmptyPayload;
@@ -48,6 +49,7 @@ import java.io.UncheckedIOException;
 import java.nio.channels.ClosedChannelException;
 import java.security.*;
 import java.security.spec.PKCS8EncodedKeySpec;
+import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -60,6 +62,7 @@ import java.util.stream.Collectors;
  */
 @RestController
 public class PrometheusController {
+  private static final Duration NO_TIMEOUT = Duration.ofSeconds(Long.MAX_VALUE);
   private final PrometheusMeterRegistry meterRegistry;
   private final Timer scrapeTimerSuccess;
   private final Timer scrapeTimerClosed;
@@ -157,7 +160,9 @@ public class PrometheusController {
   }
 
   @GetMapping(value = "/metrics/connected", produces = "text/plain")
-  public Mono<String> prometheus() {
+  public Mono<String> prometheus(@RequestHeader(value = "X-Prometheus-Scrape-Timeout-Seconds", required = false) String timeoutHeader) {
+    Duration timeout = determineTimeout(timeoutHeader);
+
     return Flux
         .fromIterable(scrapableApps.entrySet())
         .flatMap(socketAndState -> {
@@ -167,6 +172,7 @@ public class PrometheusController {
           return rsocket
               .requestResponse(connectionState.createKeyPayload())
               .map(payload -> connectionState.receiveScrapePayload(payload, sample))
+              .timeout(timeout)
               .onErrorResume(throwable -> {
                 scrapableApps.remove(rsocket);
 
@@ -182,6 +188,26 @@ public class PrometheusController {
               });
         })
         .collect(Collectors.joining("\n"));
+  }
+
+  private Duration determineTimeout(String timeoutHeader) {
+    if (timeoutHeader == null) {
+      return NO_TIMEOUT;
+    }
+
+    try {
+      Double timeoutMillis = Double.parseDouble(timeoutHeader) * 1E3;
+      Duration timeout = Duration
+          .ofMillis(timeoutMillis.longValue())
+          .minus(properties.getTimeoutOffset());
+
+      if (timeout.isNegative() || timeout.isZero()) {
+        return NO_TIMEOUT;
+      }
+      return timeout;
+    } catch (NumberFormatException e) {
+      return NO_TIMEOUT;
+    }
   }
 
   class ConnectionState {
