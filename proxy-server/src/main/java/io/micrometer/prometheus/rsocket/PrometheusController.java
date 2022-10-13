@@ -62,7 +62,6 @@ import java.util.stream.Collectors;
  */
 @RestController
 public class PrometheusController {
-  private static final Duration NO_TIMEOUT = Duration.ofSeconds(Long.MAX_VALUE);
   private final PrometheusMeterRegistry meterRegistry;
   private final Timer scrapeTimerSuccess;
   private final Timer scrapeTimerClosed;
@@ -169,10 +168,12 @@ public class PrometheusController {
           ConnectionState connectionState = socketAndState.getValue();
           RSocket rsocket = socketAndState.getKey();
           Timer.Sample sample = Timer.start();
-          return rsocket
-              .requestResponse(connectionState.createKeyPayload())
+          Mono<Payload> request = rsocket.requestResponse(connectionState.createKeyPayload());
+          if (timeout != null) {
+            request = request.timeout(timeout);
+          }
+          return request
               .map(payload -> connectionState.receiveScrapePayload(payload, sample))
-              .timeout(timeout)
               .onErrorResume(throwable -> {
                 scrapableApps.remove(rsocket);
 
@@ -192,7 +193,7 @@ public class PrometheusController {
 
   private Duration determineTimeout(String timeoutHeader) {
     if (timeoutHeader == null) {
-      return NO_TIMEOUT;
+      return null;
     }
 
     try {
@@ -201,11 +202,11 @@ public class PrometheusController {
           .minus(properties.getTimeoutOffset());
 
       if (timeout.isNegative() || timeout.isZero()) {
-        return NO_TIMEOUT;
+        return null;
       }
       return timeout;
     } catch (NumberFormatException e) {
-      return NO_TIMEOUT;
+      return null;
     }
   }
 
