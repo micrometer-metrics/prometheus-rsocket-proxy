@@ -196,9 +196,8 @@ public class PrometheusController {
     }
 
     try {
-      Double timeoutMillis = Double.parseDouble(timeoutHeader) * 1E3;
       Duration timeout = Duration
-          .ofMillis(timeoutMillis.longValue())
+          .ofMillis((long) (Double.parseDouble(timeoutHeader) * 1_000))
           .minus(properties.getTimeoutOffset());
 
       if (timeout.isNegative() || timeout.isZero()) {
