@@ -29,7 +29,7 @@ import org.springframework.boot.actuate.autoconfigure.metrics.MetricsAutoConfigu
 import org.springframework.boot.actuate.autoconfigure.metrics.export.prometheus.PrometheusMetricsExportAutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
-import org.springframework.util.SocketUtils;
+import org.springframework.test.util.TestSocketUtils;
 import reactor.core.publisher.Mono;
 
 import java.util.concurrent.CountDownLatch;
@@ -62,7 +62,7 @@ class PrometheusRSocketClientAutoConfigurationTest {
 
   @Test
   void prometheusRSocketClientTcp() {
-    int port = SocketUtils.findAvailableTcpPort();
+    int port = TestSocketUtils.findAvailableTcpPort();
     CountDownLatch latch = new CountDownLatch(1);
 
     startServer(TcpServerTransport.create(port), latch).block();
@@ -80,7 +80,7 @@ class PrometheusRSocketClientAutoConfigurationTest {
 
   @Test
   void prometheusRSocketClientWebsocket() {
-    int port = SocketUtils.findAvailableTcpPort();
+    int port = TestSocketUtils.findAvailableTcpPort();
     CountDownLatch latch = new CountDownLatch(1);
 
     startServer(WebsocketServerTransport.create(port), latch).block();

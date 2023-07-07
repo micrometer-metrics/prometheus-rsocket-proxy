@@ -1,16 +1,16 @@
 version: 2.1
 
 executors:
-  circle-jdk8-executor:
+  circle-jdk17-executor:
     working_directory: ~/prometheus-rsocket-proxy
     environment:
       GRADLE_OPTS: '-Dorg.gradle.jvmargs="-Xmx2048m -XX:+HeapDumpOnOutOfMemoryError"'
     docker:
-      - image: cimg/openjdk:8.0.322
+      - image: cimg/openjdk:17.0.7
 
 jobs:
   build:
-    executor: circle-jdk8-executor
+    executor: circle-jdk17-executor
     steps:
       - checkout
 
@@ -46,7 +46,7 @@ jobs:
           path: test-results/
 
   deploy:
-    executor: circle-jdk8-executor
+    executor: circle-jdk17-executor
     steps:
       - checkout
       - restore_cache:

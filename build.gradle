@@ -56,23 +56,23 @@ subprojects {
 
   compileJava {
     options.encoding = 'UTF-8'
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
 
-    // ensure Java 8 baseline is enforced
-    if (JavaVersion.current().isJava9Compatible()) {
-      options.release = 8
+    // ensure Java 17 baseline is enforced when building with higher versions
+    if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_18)) {
+      options.release = 17
     }
   }
 
   compileTestJava {
     options.encoding = 'UTF-8'
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
 
-    // ensure Java 8 baseline is enforced
-    if (JavaVersion.current().isJava9Compatible()) {
-      options.release = 8
+    // ensure Java 17 baseline is enforced when building with higher versions
+    if (JavaVersion.current().isCompatibleWith(JavaVersion.VERSION_18)) {
+      options.release = 17
     }
   }
 
