@@ -8,7 +8,7 @@ repositories {
 
 dependencies {
   api 'io.rsocket:rsocket-core:1.1.+'
-  api 'io.micrometer:micrometer-registry-prometheus:1.9.12'
+  api 'io.micrometer:micrometer-registry-prometheus:1.9.16'
   implementation 'org.xerial.snappy:snappy-java:latest.release'
 
   testImplementation 'ch.qos.logback:logback-classic:1.2.+'
