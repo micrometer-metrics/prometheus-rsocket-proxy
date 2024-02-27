@@ -69,8 +69,8 @@ class PrometheusRSocketClientAutoConfigurationTest {
 
     contextRunner
         .withPropertyValues(
-            "management.metrics.export.prometheus.rsocket.port=" + port,
-            "management.metrics.export.prometheus.rsocket.transport=tcp"
+            "management.prometheus.metrics.export.rsocket.port=" + port,
+            "management.prometheus.metrics.export.rsocket.transport=tcp"
         )
         .run(context -> {
           latch.await(5, TimeUnit.SECONDS);
@@ -87,8 +87,8 @@ class PrometheusRSocketClientAutoConfigurationTest {
 
     contextRunner
         .withPropertyValues(
-            "management.metrics.export.prometheus.rsocket.port=" + port,
-            "management.metrics.export.prometheus.rsocket.transport=websocket"
+            "management.prometheus.metrics.export.rsocket.port=" + port,
+            "management.prometheus.metrics.export.rsocket.transport=websocket"
         )
         .run(context -> {
           latch.await(5, TimeUnit.SECONDS);
