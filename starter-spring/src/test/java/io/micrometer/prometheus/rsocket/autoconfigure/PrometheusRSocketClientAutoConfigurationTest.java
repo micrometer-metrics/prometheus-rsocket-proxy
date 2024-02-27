@@ -1,5 +1,5 @@
 /**
- * Copyright 2019 Pivotal Software, Inc.
+ * Copyright 20190 Pivotal Software, Inc.
  * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -69,8 +69,8 @@ class PrometheusRSocketClientAutoConfigurationTest {
 
     contextRunner
         .withPropertyValues(
-            "management.metrics.export.prometheus.rsocket.port=" + port,
-            "management.metrics.export.prometheus.rsocket.transport=tcp"
+            "management.prometheus.metrics.export.rsocket.port=" + port,
+            "management.prometheus.metrics.export.rsocket.transport=tcp"
         )
         .run(context -> {
           latch.await(5, TimeUnit.SECONDS);
@@ -87,8 +87,8 @@ class PrometheusRSocketClientAutoConfigurationTest {
 
     contextRunner
         .withPropertyValues(
-            "management.metrics.export.prometheus.rsocket.port=" + port,
-            "management.metrics.export.prometheus.rsocket.transport=websocket"
+            "management.prometheus.metrics.export.rsocket.port=" + port,
+            "management.prometheus.metrics.export.rsocket.transport=websocket"
         )
         .run(context -> {
           latch.await(5, TimeUnit.SECONDS);

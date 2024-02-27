@@ -65,7 +65,7 @@ or
 This will autoconfigure the Micrometer `PrometheusMeterRegistry`, a `PrometheusRSocketClient`, and a call to `pushAndClose` on application shutdown. The client will be configured to retry failing connections to the proxy. Retrying can be tuned with:
 
 ```yml
-management.metrics.export.prometheus.rsocket:
+management.prometheus.metrics.export.rsocket:
   host: YOURPROXYHOSTHERE #required
   port: 7001
   max-retries: 10000 # default is Long.MAX_VALUE
