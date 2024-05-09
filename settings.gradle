@@ -13,19 +13,21 @@ pluginManagement {
 }
 
 plugins {
-  id 'com.gradle.enterprise' version '3.16.2'
-  id 'io.spring.ge.conventions' version '0.0.15'
+  id 'com.gradle.develocity' version '3.17.2'
+  id 'io.spring.ge.conventions' version '0.0.17'
 }
 
 rootProject.name = 'prometheus-rsocket-proxy'
 
-buildCache {
-  remote(HttpBuildCache) {
-    url = 'https://ge.micrometer.io/cache/'
-  }
-}
-gradleEnterprise {
+develocity {
   server = 'https://ge.micrometer.io'
+}
+
+// The build cache settings should be the following, but build cache is not enabled in gradle.properties at the moment
+buildCache {
+  remote(develocity.buildCache) {
+    server = 'https://ge.micrometer.io'
+  }
 }
 
 include 'prometheus-rsocket-proxy'
