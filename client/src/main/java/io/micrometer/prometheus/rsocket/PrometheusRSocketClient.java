@@ -21,7 +21,7 @@ import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.lang.Nullable;
 import io.micrometer.core.util.internal.logging.InternalLogger;
 import io.micrometer.core.util.internal.logging.InternalLoggerFactory;
-import io.micrometer.prometheus.PrometheusMeterRegistry;
+import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
 import io.rsocket.Payload;
 import io.rsocket.RSocket;
 import io.rsocket.core.RSocketConnector;

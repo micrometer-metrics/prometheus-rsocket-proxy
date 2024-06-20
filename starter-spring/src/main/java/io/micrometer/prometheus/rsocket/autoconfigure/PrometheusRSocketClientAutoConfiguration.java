@@ -16,8 +16,8 @@
 
 package io.micrometer.prometheus.rsocket.autoconfigure;
 
-import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.micrometer.prometheus.rsocket.PrometheusRSocketClient;
+import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
 import org.springframework.boot.actuate.autoconfigure.metrics.export.prometheus.PrometheusMetricsExportAutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;

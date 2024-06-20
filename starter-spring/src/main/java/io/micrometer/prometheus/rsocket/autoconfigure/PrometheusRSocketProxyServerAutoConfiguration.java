@@ -15,9 +15,9 @@
  */
 package io.micrometer.prometheus.rsocket.autoconfigure;
 
-import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.micrometer.prometheus.rsocket.PrometheusController;
 import io.micrometer.prometheus.rsocket.PrometheusControllerProperties;
+import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;

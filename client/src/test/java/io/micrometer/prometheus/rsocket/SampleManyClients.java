@@ -18,9 +18,9 @@ package io.micrometer.prometheus.rsocket;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.Logger;
 import io.micrometer.core.instrument.Clock;
-import io.micrometer.prometheus.PrometheusConfig;
-import io.micrometer.prometheus.PrometheusMeterRegistry;
-import io.prometheus.client.CollectorRegistry;
+import io.micrometer.prometheusmetrics.PrometheusConfig;
+import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
+import io.prometheus.metrics.model.registry.PrometheusRegistry;
 import io.rsocket.transport.netty.client.TcpClientTransport;
 import org.slf4j.LoggerFactory;
 import reactor.core.publisher.Flux;
@@ -39,7 +39,7 @@ public class SampleManyClients {
 
     List<PrometheusMeterRegistry> registries = IntStream.range(0, CLIENT_COUNT)
         .mapToObj(n -> {
-          PrometheusMeterRegistry meterRegistry = new PrometheusMeterRegistry(PrometheusConfig.DEFAULT, new CollectorRegistry(), Clock.SYSTEM);
+          PrometheusMeterRegistry meterRegistry = new PrometheusMeterRegistry(PrometheusConfig.DEFAULT, new PrometheusRegistry(), Clock.SYSTEM);
           meterRegistry.config().commonTags("client.id", Integer.toString(n));
 
           PrometheusRSocketClient.build(meterRegistry, TcpClientTransport.create("localhost", 7001))
