@@ -31,7 +31,7 @@ import reactor.util.retry.Retry;
 @AutoConfiguration
 @AutoConfigureAfter(PrometheusMetricsExportAutoConfiguration.class)
 @ConditionalOnBean(PrometheusMeterRegistry.class)
-@ConditionalOnProperty(prefix = "management.prometheus.metrics.export.rsocket", name = "enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(prefix = "micrometer.prometheus.rsocket", name = "enabled", havingValue = "true", matchIfMissing = true)
 @EnableConfigurationProperties(PrometheusRSocketClientProperties.class)
 public class PrometheusRSocketClientAutoConfiguration {
 
