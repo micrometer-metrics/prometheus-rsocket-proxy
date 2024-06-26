@@ -25,7 +25,7 @@ import reactor.netty.tcp.TcpClient;
 
 import java.time.Duration;
 
-@ConfigurationProperties("management.metrics.export.prometheus.rsocket")
+@ConfigurationProperties("micrometer.prometheus.rsocket")
 public class PrometheusRSocketClientProperties {
 
   /**
