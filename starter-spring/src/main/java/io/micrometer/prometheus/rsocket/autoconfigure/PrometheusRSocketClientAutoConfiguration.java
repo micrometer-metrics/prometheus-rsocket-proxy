@@ -41,6 +41,7 @@ public class PrometheusRSocketClientAutoConfiguration {
     return PrometheusRSocketClient.build(meterRegistry, properties.createClientTransport())
         .retry(Retry.backoff(properties.getMaxRetries(), properties.getFirstBackoff())
             .maxBackoff(properties.getMaxBackoff()))
+        .timeout(properties.getTimeout())
         .connectBlockingly();
   }
 }

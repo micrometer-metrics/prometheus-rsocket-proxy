@@ -63,6 +63,11 @@ public class PrometheusRSocketClientProperties {
    */
   private boolean secure = false;
 
+  /**
+   * The timeout in seconds to be used for establishing the connection and pushing the data
+   */
+  private Duration timeout = Duration.ofSeconds(5);
+
   public long getMaxRetries() {
     return maxRetries;
   }
@@ -117,6 +122,14 @@ public class PrometheusRSocketClientProperties {
 
   public boolean isSecure() {
     return secure;
+  }
+
+  public Duration getTimeout() {
+    return timeout;
+  }
+
+  public void setTimeout(Duration timeout) {
+    this.timeout = timeout;
   }
 
   ClientTransport createClientTransport() {
