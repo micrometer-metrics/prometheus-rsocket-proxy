@@ -30,6 +30,7 @@ import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import reactor.util.retry.Retry;
 
+import java.lang.reflect.Field;
 import java.security.KeyPairGenerator;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
@@ -165,7 +166,7 @@ class PrometheusRSocketClientTests {
   }
 
   @Test
-  void blockingConnectAndPush() throws NoSuchAlgorithmException, InterruptedException, ExecutionException {
+  void blockingConnectAndPush() throws NoSuchAlgorithmException, InterruptedException, ExecutionException, NoSuchFieldException, IllegalAccessException {
     CountDownLatch pushLatch = new CountDownLatch(1);
     AtomicBoolean pushed = new AtomicBoolean(false);
     Payload payload = DefaultPayload.create(KeyPairGenerator.getInstance("RSA").generateKeyPair().getPublic().getEncoded());
@@ -200,6 +201,7 @@ class PrometheusRSocketClientTests {
         serverTransport.clientTransport()
     )
         .retry(Retry.max(0))
+        .timeout(Duration.ofSeconds(10))
         .doOnKeyReceived(() -> {
           await(keyReceivedLatch);
           keyReceived.set(true);
@@ -210,6 +212,11 @@ class PrometheusRSocketClientTests {
     assertThat(keyReceived).as("Public key should not be received (not connected)").isFalse();
     PrometheusRSocketClient client = clientFuture.get();
     assertThat(keyReceived).as("Public key should be received(connected)").isTrue();
+
+    Field timeoutField = PrometheusRSocketClient.class.getDeclaredField("timeout");
+    timeoutField.setAccessible(true);
+    Duration timeout = (Duration)timeoutField.get(client);
+    assertThat(timeout.toSeconds()).isEqualTo(10L);
 
     CompletableFuture<Void> closeFuture = runAsync(client::pushAndCloseBlockingly, newSingleThreadExecutor());
     runAsync(pushLatch::countDown, newDelayedExecutor());
