@@ -17,11 +17,15 @@ package io.micrometer.prometheus.rsocket;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
+import java.time.Duration;
+
 /**
  * @author Christian Tzolov
  */
 @ConfigurationProperties("micrometer.prometheus-proxy")
 public class PrometheusControllerProperties {
+
+  private static final Duration DEFAULT_TIMEOUT_OFFSET = Duration.ZERO;
 
   /**
    * Proxy accept TCP port.
@@ -32,6 +36,11 @@ public class PrometheusControllerProperties {
    * Proxy accept Websocket port.
    */
   private int websocketPort = 8081;
+
+  /**
+   * Scrape timeout offset.
+   */
+  private Duration timeoutOffset = DEFAULT_TIMEOUT_OFFSET;
 
   public int getTcpPort() {
     return tcpPort;
@@ -47,5 +56,17 @@ public class PrometheusControllerProperties {
 
   public void setWebsocketPort(int websocketPort) {
     this.websocketPort = websocketPort;
+  }
+
+  public Duration getTimeoutOffset() {
+    return timeoutOffset;
+  }
+
+  public void setTimeoutOffset(Duration timeoutOffset) {
+    if (timeoutOffset == null || timeoutOffset.isNegative()) {
+      this.timeoutOffset = DEFAULT_TIMEOUT_OFFSET;
+    } else {
+      this.timeoutOffset = timeoutOffset;
+    }
   }
 }
