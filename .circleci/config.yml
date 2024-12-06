@@ -62,6 +62,8 @@ workflows:
     jobs:
       - build
       - deploy:
+          context:
+            - deploy
           requires:
             - build
           filters:
@@ -78,6 +80,8 @@ workflows:
             tags:
               only: /^v\d+\.\d+\.\d+(-(RC|M)\d+)?$/
       - deploy:
+          context:
+            - deploy
           requires:
             - build
           filters:
