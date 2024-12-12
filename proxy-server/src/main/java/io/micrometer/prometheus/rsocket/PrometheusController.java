@@ -78,8 +78,11 @@ public class PrometheusController {
         .tag("exception", "none")
         .publishPercentileHistogram()
         .register(meterRegistry);
-
-    this.scrapeTimerClosed = meterRegistry.timer("prometheus.proxy.scrape", "outcome", "closed", "exception", "none");
+    this.scrapeTimerClosed = Timer.builder("prometheus.proxy.scrape")
+        .tag("outcome", "closed")
+        .tag("exception", "none")
+        .publishPercentileHistogram()
+        .register(meterRegistry);
     this.scrapePayload = DistributionSummary.builder("prometheus.proxy.scrape.payload")
         .publishPercentileHistogram()
         .baseUnit("bytes")
@@ -173,9 +176,13 @@ public class PrometheusController {
                 if (throwable instanceof ClosedChannelException) {
                   sample.stop(scrapeTimerClosed);
                 } else {
-                  sample.stop(meterRegistry.timer("prometheus.proxy.scrape",
-                      "outcome", "error",
-                      "exception", throwable.getMessage()));
+                  sample.stop(
+                      Timer.builder("prometheus.proxy.scrape")
+                          .tag("outcome", "error")
+                          .tag("exception", throwable.getMessage())
+                          .publishPercentileHistogram()
+                          .register(meterRegistry)
+                  );
                 }
 
                 return connectionState.getDyingPush();
