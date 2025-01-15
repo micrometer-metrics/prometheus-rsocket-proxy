@@ -121,7 +121,7 @@ public class PrometheusController {
     // respond with Mono.error(..) to
     RSocket metricsInterceptedSendingSocket = metricsInterceptor.apply(sendingSocket);
 
-    ConnectionState connectionState = new ConnectionState(generator.generateKeyPair());
+    ConnectionState connectionState = new ConnectionState(generator.generateKeyPair(), this.properties);
     scrapableApps.put(metricsInterceptedSendingSocket, connectionState);
 
     // a key to be used by the client to push metrics as it's dying if this happens before the first scrape
@@ -186,12 +186,14 @@ public class PrometheusController {
 
   class ConnectionState {
     private final KeyPair keyPair;
+    private final PrometheusControllerProperties properties;
 
     // the last metrics of a dying application instance
     private String dyingPush;
 
-    ConnectionState(KeyPair keyPair) {
+    ConnectionState(KeyPair keyPair, PrometheusControllerProperties properties) {
       this.keyPair = keyPair;
+      this.properties = properties;
     }
 
     Mono<String> getDyingPush() {
@@ -211,6 +213,9 @@ public class PrometheusController {
             ByteBufUtil.getBytes(sliceData, sliceData.readerIndex(), sliceData.readableBytes(), false));
 
         String uncompressed = Snappy.uncompressString(decrypted);
+        if (!this.properties.getConnectedMetricsMetadata()) {
+          uncompressed = uncompressed.replaceAll("(?m)^#.*\n", "");
+        }
         scrapePayload.record(uncompressed.length());
         return uncompressed;
       } catch (IOException e) {
