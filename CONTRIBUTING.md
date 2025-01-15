@@ -35,7 +35,7 @@ Git client to clone the source code to your local machine.
 
 ## Building
 
-This project targets Java 8.
+This project targets Java 17.
 
 The Gradle wrapper is provided and should be used for building with a consistent version of Gradle.
 
