@@ -20,6 +20,7 @@ import io.rsocket.transport.ClientTransport;
 import io.rsocket.transport.netty.client.TcpClientTransport;
 import io.rsocket.transport.netty.client.WebsocketClientTransport;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.NestedConfigurationProperty;
 import org.springframework.boot.convert.DurationUnit;
 import reactor.netty.http.client.HttpClient;
 import reactor.netty.tcp.TcpClient;
@@ -41,19 +42,98 @@ public class PrometheusRSocketClientProperties {
   private int port = 7001;
 
   /**
-   * The maximum number of connection attempts to make.
+   * Retry configuration for the reconnect.
    */
-  private long maxRetries = Long.MAX_VALUE;
+  @NestedConfigurationProperty
+  private ReconnectRetry reconnectRetry = new ReconnectRetry();
 
   /**
-   * The first connection attempt backoff delay to apply, then grow exponentially.
+   * Retry configuration for the subscription.
    */
-  private Duration firstBackoff = Duration.ofSeconds(10);
+  @NestedConfigurationProperty
+  private Retry retry = new Retry();
 
-  /**
-   * The maximum connection attempt delay to apply despite exponential growth.
-   */
-  private Duration maxBackoff = Duration.ofMinutes(10);
+  public static class ReconnectRetry {
+    /**
+     * The maximum number of connection attempts to make.
+     */
+    private long maxRetries = Long.MAX_VALUE;
+
+    /**
+     * The first connection attempt backoff delay to apply, then grow exponentially.
+     */
+    private Duration firstBackoff = Duration.ofSeconds(10);
+
+    /**
+     * The maximum connection attempt delay to apply despite exponential growth.
+     */
+    private Duration maxBackoff = Duration.ofMinutes(10);
+
+    public long getMaxRetries() {
+      return maxRetries;
+    }
+
+    public void setMaxRetries(long maxRetries) {
+      this.maxRetries = maxRetries;
+    }
+
+    public Duration getFirstBackoff() {
+      return firstBackoff;
+    }
+
+    public void setFirstBackoff(Duration firstBackoff) {
+      this.firstBackoff = firstBackoff;
+    }
+
+    public Duration getMaxBackoff() {
+      return maxBackoff;
+    }
+
+    public void setMaxBackoff(Duration maxBackoff) {
+      this.maxBackoff = maxBackoff;
+    }
+  }
+
+  public static class Retry {
+    /**
+     * The maximum number of connection attempts to make.
+     */
+    private long maxRetries = 6;
+
+    /**
+     * The first connection attempt backoff delay to apply, then grow exponentially.
+     */
+    private Duration firstBackoff = Duration.ofMillis(100);
+
+    /**
+     * The maximum connection attempt delay to apply despite exponential growth.
+     */
+    private Duration maxBackoff = Duration.ofSeconds(5);
+
+    public long getMaxRetries() {
+      return maxRetries;
+    }
+
+    public void setMaxRetries(long maxRetries) {
+      this.maxRetries = maxRetries;
+    }
+
+    public Duration getFirstBackoff() {
+      return firstBackoff;
+    }
+
+    public void setFirstBackoff(Duration firstBackoff) {
+      this.firstBackoff = firstBackoff;
+    }
+
+    public Duration getMaxBackoff() {
+      return maxBackoff;
+    }
+
+    public void setMaxBackoff(Duration maxBackoff) {
+      this.maxBackoff = maxBackoff;
+    }
+  }
 
   /**
    * RSocket transport protocol.
@@ -70,30 +150,6 @@ public class PrometheusRSocketClientProperties {
    */
   @DurationUnit(ChronoUnit.SECONDS)
   private Duration timeout = Duration.ofSeconds(5);
-
-  public long getMaxRetries() {
-    return maxRetries;
-  }
-
-  public void setMaxRetries(long maxRetries) {
-    this.maxRetries = maxRetries;
-  }
-
-  public Duration getFirstBackoff() {
-    return firstBackoff;
-  }
-
-  public void setFirstBackoff(Duration firstBackoff) {
-    this.firstBackoff = firstBackoff;
-  }
-
-  public Duration getMaxBackoff() {
-    return maxBackoff;
-  }
-
-  public void setMaxBackoff(Duration maxBackoff) {
-    this.maxBackoff = maxBackoff;
-  }
 
   public String getHost() {
     return host;
@@ -133,6 +189,22 @@ public class PrometheusRSocketClientProperties {
 
   public void setTimeout(Duration timeout) {
     this.timeout = timeout;
+  }
+
+  public ReconnectRetry getReconnectRetry() {
+    return reconnectRetry;
+  }
+
+  public void setReconnectRetry(ReconnectRetry reconnectRetry) {
+    this.reconnectRetry = reconnectRetry;
+  }
+
+  public Retry getRetry() {
+    return retry;
+  }
+
+  public void setRetry(Retry retry) {
+    this.retry = retry;
   }
 
   ClientTransport createClientTransport() {
