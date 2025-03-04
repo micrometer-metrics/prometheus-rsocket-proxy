@@ -16,8 +16,8 @@
 package io.micrometer.prometheus.rsocket;
 
 import io.micrometer.core.instrument.Counter;
-import io.micrometer.prometheus.PrometheusConfig;
-import io.micrometer.prometheus.PrometheusMeterRegistry;
+import io.micrometer.prometheusmetrics.PrometheusConfig;
+import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
 import io.rsocket.transport.netty.client.WebsocketClientTransport;
 import reactor.core.publisher.Flux;
 import reactor.util.retry.Retry;

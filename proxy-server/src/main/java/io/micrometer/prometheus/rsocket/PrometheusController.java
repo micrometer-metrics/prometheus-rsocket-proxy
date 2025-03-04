@@ -19,7 +19,7 @@ import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.DistributionSummary;
 import io.micrometer.core.instrument.Tags;
 import io.micrometer.core.instrument.Timer;
-import io.micrometer.prometheus.PrometheusMeterRegistry;
+import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.ByteBufUtil;
 import io.rsocket.Payload;
@@ -39,7 +39,7 @@ import org.xerial.snappy.Snappy;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import javax.annotation.PostConstruct;
+import jakarta.annotation.PostConstruct;
 import javax.crypto.Cipher;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
@@ -76,12 +76,12 @@ public class PrometheusController {
     this.scrapeTimerSuccess = Timer.builder("prometheus.proxy.scrape")
         .tag("outcome", "success")
         .tag("exception", "none")
-        .publishPercentileHistogram()
         .register(meterRegistry);
-
-    this.scrapeTimerClosed = meterRegistry.timer("prometheus.proxy.scrape", "outcome", "closed", "exception", "none");
+    this.scrapeTimerClosed = Timer.builder("prometheus.proxy.scrape")
+        .tag("outcome", "closed")
+        .tag("exception", "none")
+        .register(meterRegistry);
     this.scrapePayload = DistributionSummary.builder("prometheus.proxy.scrape.payload")
-        .publishPercentileHistogram()
         .baseUnit("bytes")
         .register(meterRegistry);
   }

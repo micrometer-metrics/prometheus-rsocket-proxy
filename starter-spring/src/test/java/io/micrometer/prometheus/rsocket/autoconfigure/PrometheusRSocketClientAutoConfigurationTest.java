@@ -29,7 +29,7 @@ import org.springframework.boot.actuate.autoconfigure.metrics.MetricsAutoConfigu
 import org.springframework.boot.actuate.autoconfigure.metrics.export.prometheus.PrometheusMetricsExportAutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigurations;
 import org.springframework.boot.test.context.runner.ApplicationContextRunner;
-import org.springframework.util.SocketUtils;
+import org.springframework.test.util.TestSocketUtils;
 import reactor.core.publisher.Mono;
 
 import java.util.concurrent.CountDownLatch;
@@ -62,15 +62,15 @@ class PrometheusRSocketClientAutoConfigurationTest {
 
   @Test
   void prometheusRSocketClientTcp() {
-    int port = SocketUtils.findAvailableTcpPort();
+    int port = TestSocketUtils.findAvailableTcpPort();
     CountDownLatch latch = new CountDownLatch(1);
 
     startServer(TcpServerTransport.create(port), latch).block();
 
     contextRunner
         .withPropertyValues(
-            "management.metrics.export.prometheus.rsocket.port=" + port,
-            "management.metrics.export.prometheus.rsocket.transport=tcp"
+            "micrometer.prometheus.rsocket.port=" + port,
+            "micrometer.prometheus.rsocket.transport=tcp"
         )
         .run(context -> {
           latch.await(5, TimeUnit.SECONDS);
@@ -80,15 +80,15 @@ class PrometheusRSocketClientAutoConfigurationTest {
 
   @Test
   void prometheusRSocketClientWebsocket() {
-    int port = SocketUtils.findAvailableTcpPort();
+    int port = TestSocketUtils.findAvailableTcpPort();
     CountDownLatch latch = new CountDownLatch(1);
 
     startServer(WebsocketServerTransport.create(port), latch).block();
 
     contextRunner
         .withPropertyValues(
-            "management.metrics.export.prometheus.rsocket.port=" + port,
-            "management.metrics.export.prometheus.rsocket.transport=websocket"
+            "micrometer.prometheus.rsocket.port=" + port,
+            "micrometer.prometheus.rsocket.transport=websocket"
         )
         .run(context -> {
           latch.await(5, TimeUnit.SECONDS);

@@ -20,12 +20,14 @@ import io.rsocket.transport.ClientTransport;
 import io.rsocket.transport.netty.client.TcpClientTransport;
 import io.rsocket.transport.netty.client.WebsocketClientTransport;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.convert.DurationUnit;
 import reactor.netty.http.client.HttpClient;
 import reactor.netty.tcp.TcpClient;
 
 import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 
-@ConfigurationProperties("management.metrics.export.prometheus.rsocket")
+@ConfigurationProperties("micrometer.prometheus.rsocket")
 public class PrometheusRSocketClientProperties {
 
   /**
@@ -62,6 +64,12 @@ public class PrometheusRSocketClientProperties {
    * Whether to use a secured protocol.
    */
   private boolean secure = false;
+
+  /**
+   * The timeout to be used for establishing the connection and pushing the data
+   */
+  @DurationUnit(ChronoUnit.SECONDS)
+  private Duration timeout = Duration.ofSeconds(5);
 
   public long getMaxRetries() {
     return maxRetries;
@@ -117,6 +125,14 @@ public class PrometheusRSocketClientProperties {
 
   public boolean isSecure() {
     return secure;
+  }
+
+  public Duration getTimeout() {
+    return timeout;
+  }
+
+  public void setTimeout(Duration timeout) {
+    this.timeout = timeout;
   }
 
   ClientTransport createClientTransport() {

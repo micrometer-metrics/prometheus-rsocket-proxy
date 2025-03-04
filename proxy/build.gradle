@@ -1,5 +1,5 @@
 plugins {
-  id 'org.springframework.boot' version '2.7.2'
+  id 'org.springframework.boot' version '3.4.0'
 }
 
 apply plugin: 'io.spring.dependency-management'
@@ -14,7 +14,7 @@ publishing {
       artifacts {
         // ensure the Spring Boot jar gets published rather than the plain jar
         artifact bootJar
-        artifact sourceJar // because of bootJar, we need to put these back (sourceJar and javadocJar)
+        artifact sourcesJar // because of bootJar, we need to put these back (sourcesJar and javadocJar)
         artifact javadocJar
       }
     }

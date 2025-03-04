@@ -16,8 +16,8 @@
 
 package io.micrometer.prometheus.rsocket.autoconfigure;
 
-import io.micrometer.prometheus.PrometheusMeterRegistry;
 import io.micrometer.prometheus.rsocket.PrometheusRSocketClient;
+import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
 import org.springframework.boot.actuate.autoconfigure.metrics.export.prometheus.PrometheusMetricsExportAutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
@@ -31,7 +31,7 @@ import reactor.util.retry.Retry;
 @AutoConfiguration
 @AutoConfigureAfter(PrometheusMetricsExportAutoConfiguration.class)
 @ConditionalOnBean(PrometheusMeterRegistry.class)
-@ConditionalOnProperty(prefix = "management.metrics.export.prometheus.rsocket", name = "enabled", havingValue = "true", matchIfMissing = true)
+@ConditionalOnProperty(prefix = "micrometer.prometheus.rsocket", name = "enabled", havingValue = "true", matchIfMissing = true)
 @EnableConfigurationProperties(PrometheusRSocketClientProperties.class)
 public class PrometheusRSocketClientAutoConfiguration {
 
@@ -41,6 +41,7 @@ public class PrometheusRSocketClientAutoConfiguration {
     return PrometheusRSocketClient.build(meterRegistry, properties.createClientTransport())
         .retry(Retry.backoff(properties.getMaxRetries(), properties.getFirstBackoff())
             .maxBackoff(properties.getMaxBackoff()))
+        .timeout(properties.getTimeout())
         .connectBlockingly();
   }
 }
