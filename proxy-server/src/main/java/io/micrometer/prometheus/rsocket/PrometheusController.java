@@ -213,7 +213,7 @@ public class PrometheusController {
             ByteBufUtil.getBytes(sliceData, sliceData.readerIndex(), sliceData.readableBytes(), false));
 
         String uncompressed = Snappy.uncompressString(decrypted);
-        if (!this.properties.getConnectedMetricsMetadata()) {
+        if (!this.properties.getPublishConnectedMetricsMetadata()) {
           uncompressed = uncompressed.replaceAll("(?m)^#.*\n", "");
         }
         scrapePayload.record(uncompressed.length());
