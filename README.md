@@ -117,6 +117,33 @@ This installation includes Prometheus and Grafana as well.
 1. `kubectl apply -f scripts/kubernetes/prometheus/`
 3. `kubectl apply -f scripts/kubernetes/grafana`
 
+Note: Within container orchestration platforms you have to ensure that all interactions of the client and server are bound to the same Pod the initial request was sent to. This can be achieved by using a `sessionAffinity` which is set to ClientIP
+
+Example service definition:
+```yaml
+kind: Service
+apiVersion: v1
+metadata:
+ labels:
+   app: prometheus-rsocket-proxy-server
+ # ...
+spec:
+  ports:
+    - name: https
+      protocol: TCP
+      port: 8443
+      targetPort: https
+    - name: rsocket
+      protocol: TCP
+      port: 7001
+      targetPort: rsocket
+  selector:
+    app: prometheus-rsocket-proxy-server
+  type: ClusterIP
+  sessionAffinity: ClientIP
+```
+
+
 ## Expected performance
 
 A 3-pod deployment easily handles 1,000 connected application instances each serving 1,000 distinct time series with <1vCPU and <3Gi RAM total on GKE.
