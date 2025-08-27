@@ -39,8 +39,10 @@ public class PrometheusRSocketClientAutoConfiguration {
   @Bean(destroyMethod = "pushAndCloseBlockingly")
   PrometheusRSocketClient prometheusRSocketClient(PrometheusMeterRegistry meterRegistry, PrometheusRSocketClientProperties properties) {
     return PrometheusRSocketClient.build(meterRegistry, properties.createClientTransport())
-        .retry(Retry.backoff(properties.getMaxRetries(), properties.getFirstBackoff())
-            .maxBackoff(properties.getMaxBackoff()))
+        .reconnectRetry(Retry.backoff(properties.getReconnectRetry().getMaxRetries(), properties.getReconnectRetry().getFirstBackoff())
+            .maxBackoff(properties.getReconnectRetry().getMaxBackoff()))
+        .retry(Retry.backoff(properties.getRetry().getMaxRetries(), properties.getRetry().getFirstBackoff())
+            .maxBackoff(properties.getRetry().getMaxBackoff()))
         .timeout(properties.getTimeout())
         .connectBlockingly();
   }

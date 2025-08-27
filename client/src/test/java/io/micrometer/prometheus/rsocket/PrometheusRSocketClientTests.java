@@ -69,7 +69,7 @@ class PrometheusRSocketClientTests {
     CountDownLatch reconnectionAttemptLatch = new CountDownLatch(3);
 
     PrometheusRSocketClient.build(meterRegistry, local)
-        .retry(Retry.fixedDelay(10, Duration.ofMillis(5)).doAfterRetry(retry -> reconnectionAttemptLatch.countDown()))
+        .reconnectRetry(Retry.fixedDelay(10, Duration.ofMillis(5)).doAfterRetry(retry -> reconnectionAttemptLatch.countDown()))
         .connect();
 
     assertThat(reconnectionAttemptLatch.await(1, SECONDS)).isTrue();
@@ -90,7 +90,7 @@ class PrometheusRSocketClientTests {
         .block();
 
     PrometheusRSocketClient client = PrometheusRSocketClient.build(meterRegistry, serverTransport.clientTransport())
-        .retry(Retry.max(3))
+        .reconnectRetry(Retry.max(3))
         .connect();
 
     client.pushAndClose();
@@ -144,7 +144,7 @@ class PrometheusRSocketClientTests {
             },
             serverTransport.clientTransport()
         )
-        .retry(Retry.max(0))
+        .reconnectRetry(Retry.max(0))
         .connectBlockingly();
 
     assertThat(normalScrapeLatch.await(1, SECONDS)).isTrue();
@@ -200,7 +200,7 @@ class PrometheusRSocketClientTests {
         () -> "",
         serverTransport.clientTransport()
     )
-        .retry(Retry.max(0))
+        .reconnectRetry(Retry.max(0))
         .timeout(Duration.ofSeconds(10))
         .doOnKeyReceived(() -> {
           await(keyReceivedLatch);
