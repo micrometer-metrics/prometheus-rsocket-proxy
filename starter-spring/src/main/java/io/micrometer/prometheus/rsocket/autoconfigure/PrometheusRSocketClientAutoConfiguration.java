@@ -18,13 +18,13 @@ package io.micrometer.prometheus.rsocket.autoconfigure;
 
 import io.micrometer.prometheus.rsocket.PrometheusRSocketClient;
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
-import org.springframework.boot.actuate.autoconfigure.metrics.export.prometheus.PrometheusMetricsExportAutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.boot.micrometer.metrics.autoconfigure.export.prometheus.PrometheusMetricsExportAutoConfiguration;
 import org.springframework.context.annotation.Bean;
 import reactor.util.retry.Retry;
 
