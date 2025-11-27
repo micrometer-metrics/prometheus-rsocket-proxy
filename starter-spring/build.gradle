@@ -2,7 +2,7 @@ import org.springframework.boot.gradle.plugin.SpringBootPlugin
 
 plugins {
   id 'java-library'
-  id 'org.springframework.boot' version '3.4.0' apply false
+  id 'org.springframework.boot' version '4.0.0' apply false
 }
 
 apply plugin: 'io.spring.dependency-management'
@@ -22,6 +22,7 @@ dependencies {
 
   implementation 'org.springframework.boot:spring-boot-actuator-autoconfigure'
   implementation 'org.springframework.boot:spring-boot-autoconfigure'
+  implementation 'org.springframework.boot:spring-boot-starter-micrometer-metrics'
   implementation project(':prometheus-rsocket-client')
   implementation project(':prometheus-rsocket-proxy-server')
 
@@ -32,9 +33,12 @@ dependencies {
   // to validate auto-completion on configuration properties
   annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
 
+  testRuntimeOnly "org.junit.platform:junit-platform-launcher"
+
   testImplementation 'org.springframework.boot:spring-boot-starter-test'
   testImplementation 'io.projectreactor:reactor-test'
   testImplementation 'io.micrometer:micrometer-registry-prometheus'
+  testImplementation 'org.springframework.boot:spring-boot-starter-micrometer-metrics-test'
 }
 
 test {
