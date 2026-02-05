@@ -10,7 +10,7 @@ dependencies {
 
 
   api 'io.rsocket:rsocket-core:1.1.+'
-  api 'io.micrometer:micrometer-registry-prometheus:1.13.+'
+  api 'io.micrometer:micrometer-registry-prometheus:1.15.+'
   implementation 'org.xerial.snappy:snappy-java:latest.release'
 
   testImplementation(platform('org.junit:junit-bom:5.14.2'))
