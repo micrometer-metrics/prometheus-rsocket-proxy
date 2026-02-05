@@ -15,7 +15,7 @@ dependencies {
 
   testImplementation(platform('org.junit:junit-bom:5.14.2'))
 
-  testImplementation 'ch.qos.logback:logback-classic:1.4.+'
+  testImplementation 'ch.qos.logback:logback-classic:1.5.+'
   testImplementation 'org.junit.jupiter:junit-jupiter'
   testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
   testImplementation 'io.rsocket:rsocket-transport-netty:1.1.+'
