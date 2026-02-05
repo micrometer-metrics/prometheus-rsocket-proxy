@@ -13,7 +13,7 @@ dependencies {
   api 'io.micrometer:micrometer-registry-prometheus:1.13.+'
   implementation 'org.xerial.snappy:snappy-java:latest.release'
 
-  testImplementation(platform('org.junit:junit-bom:5.12.1'))
+  testImplementation(platform('org.junit:junit-bom:5.14.2'))
 
   testImplementation 'ch.qos.logback:logback-classic:1.4.+'
   testImplementation 'org.junit.jupiter:junit-jupiter'
