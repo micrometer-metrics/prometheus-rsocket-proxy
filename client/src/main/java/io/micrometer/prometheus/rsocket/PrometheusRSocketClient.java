@@ -72,14 +72,15 @@ public class PrometheusRSocketClient {
    *
    * @param registryAndScrape the registry and scrape meter
    * @param transport         the client transport
-   * @param retry             the retry configuration
+   * @param reconnectRetry    the reconnectRetry configuration
    * @param onKeyReceived     the callback if a key has been received
    */
   private PrometheusRSocketClient(MeterRegistryAndScrape<?> registryAndScrape,
                                   ClientTransport transport,
-                                  Retry retry,
+                                  Retry reconnectRetry,
                                   Runnable onKeyReceived) {
-    this(registryAndScrape, transport, retry, Duration.ofSeconds(5), onKeyReceived);
+    this(registryAndScrape, transport, reconnectRetry, Retry.backoff(6, Duration.ofMillis(100))
+        .maxBackoff(Duration.ofSeconds(5)), Duration.ofSeconds(5), onKeyReceived);
   }
 
   /**
@@ -93,6 +94,7 @@ public class PrometheusRSocketClient {
    */
   private PrometheusRSocketClient(MeterRegistryAndScrape<?> registryAndScrape,
                                   ClientTransport transport,
+                                  Retry reconnectRetry,
                                   Retry retry,
                                   Duration timeout,
                                   Runnable onKeyReceived) {
@@ -103,7 +105,7 @@ public class PrometheusRSocketClient {
         .reconnect(new Retry() {
           @Override
           public Publisher<?> generateCompanion(Flux<RetrySignal> retrySignals) {
-            return retry.generateCompanion(retrySignals
+            return reconnectRetry.generateCompanion(retrySignals
                 .doOnNext(retrySignal -> {
                       Throwable failure = retrySignal.failure();
                       DistributionSummary.builder("prometheus.connection.retry")
@@ -118,35 +120,57 @@ public class PrometheusRSocketClient {
           }
         })
         .acceptor((payload, r) -> {
+          LOGGER.trace("Acceptor for requestResponse and fireAndForget has been set up.");
           this.sendingSocket = r;
           return Mono.just(new RSocket() {
             @Override
             public Mono<Payload> requestResponse(Payload payload) {
-              PublicKey key = decodePublicKey(payload.getData());
-              latestKey.set(key);
-              onKeyReceived.run();
-              return Mono.fromCallable(() -> scrapePayload(key));
+              try {
+                LOGGER.trace("Received public key from Prometheus proxy in requestResponse.");
+                PublicKey key = decodePublicKey(payload.getData());
+                latestKey.set(key);
+                onKeyReceived.run();
+                return Mono.fromCallable(() -> scrapePayload(key));
+              } finally {
+                payload.release();
+              }
             }
 
             @Override
             public Mono<Void> fireAndForget(Payload payload) {
-              latestKey.set(decodePublicKey(payload.getData()));
-              onKeyReceived.run();
-              return Mono.empty();
+              try {
+                LOGGER.trace("Received public key from Prometheus proxy in fireAndForget.");
+                latestKey.set(decodePublicKey(payload.getData()));
+                onKeyReceived.run();
+                return Mono.empty();
+              } finally {
+                payload.release();
+              }
             }
           });
         })
         .connect(transport)
-        .doOnError(t -> Counter.builder("prometheus.connection.error")
-            .baseUnit("errors")
-            .tag("exception", t.getClass().getSimpleName() == null ? t.getClass().getName() : t.getClass().getSimpleName())
-            .register(registryAndScrape.registry)
-            .increment())
+        .doOnError(t -> {
+          LOGGER.trace("Failed to connect to Prometheus proxy.", t);
+          Counter.builder("prometheus.connection.error")
+              .baseUnit("errors")
+              .tag("exception", t.getClass().getSimpleName() == null ? t.getClass().getName() : t.getClass().getSimpleName())
+              .register(registryAndScrape.registry)
+              .increment();
+        })
+        .doOnSuccess(connection -> {
+          LOGGER.trace("Successfully established connection to Prometheus proxy.");
+          Counter.builder("prometheus.connection.success")
+              .baseUnit("connections")
+              .register(registryAndScrape.registry)
+              .increment();
+        })
         .doOnNext(connection -> this.connection = connection)
         .flatMap(socket -> socket.onClose()
-            .map(v -> 1) // https://github.com/rsocket/rsocket-java/issues/819
+            .then(Mono.fromCallable(() -> 1)) // https://github.com/rsocket/rsocket-java/issues/819
             .onErrorReturn(1))
         .repeat(() -> !requestedDisconnect)
+        .retryWhen(retry)
         .subscribe();
   }
 
@@ -299,8 +323,11 @@ public class PrometheusRSocketClient {
     private MeterRegistryAndScrape<?> registryAndScrape;
     private final ClientTransport clientTransport;
 
-    private Retry retry = Retry.backoff(Long.MAX_VALUE, Duration.ofSeconds(10))
+    private Retry reconnectRetry = Retry.backoff(Long.MAX_VALUE, Duration.ofSeconds(10))
         .maxBackoff(Duration.ofMinutes(10));
+
+    private Retry retry = Retry.backoff(6, Duration.ofMillis(100))
+        .maxBackoff(Duration.ofSeconds(5));
 
     private Duration timeout = Duration.ofSeconds(5);
 
@@ -310,6 +337,17 @@ public class PrometheusRSocketClient {
     <M extends MeterRegistry> Builder(M registry, Supplier<String> scrape, ClientTransport clientTransport) {
       this.registryAndScrape = new MeterRegistryAndScrape<>(registry, scrape);
       this.clientTransport = clientTransport;
+    }
+
+    /**
+     * Configures the reconnectRetry for {@link PrometheusRSocketClient}.
+     *
+     * @param reconnectRetry the reconnectRetry configuration
+     * @return the {@link Builder}
+     */
+    public Builder reconnectRetry(Retry reconnectRetry) {
+      this.reconnectRetry = reconnectRetry;
+      return this;
     }
 
     /**
@@ -366,6 +404,7 @@ public class PrometheusRSocketClient {
       return new PrometheusRSocketClient(
           registryAndScrape,
           clientTransport,
+          reconnectRetry,
           retry,
           timeout,
           () -> {
@@ -387,6 +426,8 @@ public class PrometheusRSocketClient {
     /**
      * Connects the {@link PrometheusRSocketClient} blockingly with the given timeout.
      *
+     * @param timeout the timeout to wait for the connection to be established
+     *
      * @return the {@link PrometheusRSocketClient}
      */
     public PrometheusRSocketClient connectBlockingly(Duration timeout) {
@@ -395,6 +436,7 @@ public class PrometheusRSocketClient {
       PrometheusRSocketClient client = new PrometheusRSocketClient(
           registryAndScrape,
           clientTransport,
+          reconnectRetry,
           retry,
           timeout,
           () -> {
