@@ -16,6 +16,8 @@
 
 package io.micrometer.prometheus.rsocket.autoconfigure;
 
+import io.micrometer.common.util.internal.logging.InternalLogger;
+import io.micrometer.common.util.internal.logging.InternalLoggerFactory;
 import io.micrometer.prometheus.rsocket.PrometheusRSocketClient;
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry;
 import org.springframework.boot.actuate.autoconfigure.metrics.export.prometheus.PrometheusMetricsExportAutoConfiguration;
@@ -23,7 +25,6 @@ import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import reactor.util.retry.Retry;
@@ -31,13 +32,21 @@ import reactor.util.retry.Retry;
 @AutoConfiguration
 @AutoConfigureAfter(PrometheusMetricsExportAutoConfiguration.class)
 @ConditionalOnBean(PrometheusMeterRegistry.class)
-@ConditionalOnProperty(prefix = "micrometer.prometheus.rsocket", name = "enabled", havingValue = "true", matchIfMissing = true)
 @EnableConfigurationProperties(PrometheusRSocketClientProperties.class)
 public class PrometheusRSocketClientAutoConfiguration {
+
+  private static final InternalLogger LOGGER = InternalLoggerFactory.getInstance(PrometheusRSocketClientAutoConfiguration.class);
 
   @ConditionalOnMissingBean
   @Bean(destroyMethod = "pushAndCloseBlockingly")
   PrometheusRSocketClient prometheusRSocketClient(PrometheusMeterRegistry meterRegistry, PrometheusRSocketClientProperties properties) {
+
+    if (!properties.isEnabled()) {
+      LOGGER.info("Prometheus RSocket Client is disabled.");
+      return null;
+    }
+
+    LOGGER.info("Building Prometheus RSocket Client.");
     return PrometheusRSocketClient.build(meterRegistry, properties.createClientTransport())
         .retry(Retry.backoff(properties.getMaxRetries(), properties.getFirstBackoff())
             .maxBackoff(properties.getMaxBackoff()))

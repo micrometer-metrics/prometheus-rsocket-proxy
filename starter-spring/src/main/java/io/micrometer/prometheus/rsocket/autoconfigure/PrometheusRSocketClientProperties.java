@@ -31,6 +31,11 @@ import java.time.temporal.ChronoUnit;
 public class PrometheusRSocketClientProperties {
 
   /**
+   * If the prometheus proxy client is enabled.
+   */
+  private boolean enabled = true;
+
+  /**
    * The host name of the proxy to connect to.
    */
   private String host = "localhost";
@@ -93,6 +98,14 @@ public class PrometheusRSocketClientProperties {
 
   public void setMaxBackoff(Duration maxBackoff) {
     this.maxBackoff = maxBackoff;
+  }
+
+  public boolean isEnabled() {
+    return enabled;
+  }
+
+  public void setEnabled(boolean enabled) {
+    this.enabled = enabled;
   }
 
   public String getHost() {
