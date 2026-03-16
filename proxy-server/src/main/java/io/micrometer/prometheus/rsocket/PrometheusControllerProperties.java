@@ -33,6 +33,12 @@ public class PrometheusControllerProperties {
    */
   private int websocketPort = 8081;
 
+  /**
+   * Whether to enable publishing of Prometheus metadata (lines "# HELP ..." and lines "# TYPE ...") in the payload returned by the /metrics/connected endpoint.
+   * Disabling metadata publishing reduces the amount of data sent sent on each scrape.
+   */
+  private boolean publishConnectedMetricsMetadata = true;
+
   public int getTcpPort() {
     return tcpPort;
   }
@@ -47,5 +53,13 @@ public class PrometheusControllerProperties {
 
   public void setWebsocketPort(int websocketPort) {
     this.websocketPort = websocketPort;
+  }
+
+  public boolean getPublishConnectedMetricsMetadata() {
+    return publishConnectedMetricsMetadata;
+  }
+
+  public void setPublishConnectedMetricsMetadata(boolean publishConnectedMetricsMetadata) {
+    this.publishConnectedMetricsMetadata = publishConnectedMetricsMetadata;
   }
 }
