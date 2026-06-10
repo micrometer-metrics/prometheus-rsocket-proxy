@@ -2,7 +2,7 @@ import org.springframework.boot.gradle.plugin.SpringBootPlugin
 
 plugins {
   id 'java-library'
-  id 'org.springframework.boot' version '3.5.10' apply false
+  id 'org.springframework.boot' version '4.0.7' apply false
 }
 
 apply plugin: 'io.spring.dependency-management'
@@ -22,6 +22,7 @@ dependencies {
 
   implementation 'org.springframework.boot:spring-boot-actuator-autoconfigure'
   implementation 'org.springframework.boot:spring-boot-autoconfigure'
+  implementation 'org.springframework.boot:spring-boot-micrometer-metrics'
   implementation project(':prometheus-rsocket-client')
   implementation project(':prometheus-rsocket-proxy-server')
 
